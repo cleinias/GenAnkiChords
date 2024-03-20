@@ -15,20 +15,28 @@ import re
 #                                                CONSTANTS                                      #
 #################################################################################################
 def initConstants():
+    global chordsDatafile
     chordsDatafile = "ChordsData.csv"
-    model_id = 1149467492  # randomly generated with import random; random.randrange(1 << 30, 1 << 31)
-    deck_id = 1393751746  # randomly generated with import random; random.randrange(1 << 30, 1 << 31)
-    deckName = "Comping Chords"
-    deckFileName = "Comping-Chords.apkg"
+    global model_id
+    model_id= 1149467492  # randomly generated with import random; random.randrange(1 << 30, 1 << 31)
+    global deck_id
+    deck_id= 1393751746  # randomly generated with import random; random.randrange(1 << 30, 1 << 31)
+    global deckName
+    deckName= "Comping Chords"
+    global deckFileName
+    deckFileName= "Comping-Chords.apkg"
     createEnglItTransDict()
+
 def createEnglItTransDict():
     """
     Instantiate two dictionaries for English to Italian and Italian to English translations
     of note names, including a version with unicode symbols for sharps and flats
     """
-    engl2ItNotes = dict(A="La", Af="Lab", As="Lad", B="Si", Bf="Sib", Bs="Sid", C="Do", Cf="Dob", Cs="Dod", D="Re", Df="Red",
+    global engl2ItNotes
+    engl2ItNotes= dict(A="La", Af="Lab", As="Lad", B="Si", Bf="Sib", Bs="Sid", C="Do", Cf="Dob", Cs="Dod", D="Re", Df="Red",
                    E="Mi", Ef="Mib", Es="Mis", F="Fa", Fs="Fas", Ff="Fab", G="Sol", Gs="Sold", Gb="Solb")
-    it2EnglNotes = {y: x for x, y in engl2ItNotes.items()}
+    global it2EnglNotes
+    it2EnglNotes= {y: x for x, y in engl2ItNotes.items()}
 
     for key, note  in engl2ItNotes.items():
         oldNote = note
