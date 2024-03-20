@@ -15,27 +15,22 @@ import re
 #                                                CONSTANTS                                      #
 #################################################################################################
 def initConstants():
-    global chordsDatafile
     chordsDatafile = "ChordsData.csv"
-    global model_id
     model_id= 1149467492  # randomly generated with import random; random.randrange(1 << 30, 1 << 31)
-    global deck_id
     deck_id= 1393751746  # randomly generated with import random; random.randrange(1 << 30, 1 << 31)
-    global deckName
     deckName= "Comping Chords"
-    global deckFileName
     deckFileName= "Comping-Chords.apkg"
-    createEnglItTransDict()
+    engl2ItNotes, it2EnglNotes = createEnglItTransDicts()
+    return chordsDatafile,  model_id, deck_id, deckName, deckFileName, engl2ItNotes, it2EnglNotes
 
-def createEnglItTransDict():
+def createEnglItTransDicts():
     """
     Instantiate two dictionaries for English to Italian and Italian to English translations
     of note names, including a version with unicode symbols for sharps and flats
     """
-    global engl2ItNotes
-    engl2ItNotes= dict(A="La", Af="Lab", As="Lad", B="Si", Bf="Sib", Bs="Sid", C="Do", Cf="Dob", Cs="Dod", D="Re", Df="Red",
-                   E="Mi", Ef="Mib", Es="Mis", F="Fa", Fs="Fas", Ff="Fab", G="Sol", Gs="Sold", Gb="Solb")
-    global it2EnglNotes
+
+    engl2ItNotes= dict(A="La", Af="Lab", As="Lad", B="Si", Bf="Sib", Bs="Sid", C="Do", Cf="Dob", Cs="Dod", D="Re", Df="Reb",
+                   Ds="Red", E="Mi", Ef="Mib", Es="Mid", F="Fa", Fs="Fad", Ff="Fab", G="Sol", Gs="Sold", Gb="Solb")
     it2EnglNotes= {y: x for x, y in engl2ItNotes.items()}
 
     for key, note  in engl2ItNotes.items():
@@ -49,19 +44,19 @@ def createEnglItTransDict():
         note = re.sub(r"f$","\u266D",note)
         note = re.sub(r"s$","\u266F",note)
         it2EnglNotes[key]=[oldNote,note]
+    return engl2ItNotes, it2EnglNotes
 
 def main():
     # Reading the chords data into a dictionary indexed
     # with the field names from the first row of the chords data file
-    initConstants()  # instantiate constants
-    # Variables
-    chordsData = []  # Holds all the data about chords, partly read from file and partly generated here
-    ankiNotes = []  # Holds all the notes generated from chordsData
-    ankiFields = []  # Holds the fields names for the anki model
 
+    # instantiate constants
+    chordsDatafile,  model_id, deck_id, deckName, deckFileName, engl2ItNotes, it2EnglNotes = initConstants()
+    ankiFields, ankiNotes, chordsData = initVariables()
+    lilypondTemplate = getLilyPondTempl()
+
+    # read Chords data from csv file
     with open(chordsDatafile, newline='') as csvfile:
-        # reader = csv.reader(csvfile, delimiter=';', quotechar='"')
-        # fields = next(reader)
         reader = csv.DictReader(csvfile, delimiter=';', quotechar='"', restval='pippo', restkey='leftOver')
         for row in reader:
             chordsData.append(row)
@@ -74,107 +69,9 @@ def main():
         # print('Row length = ', len(list(row.values())))
         # print(fields)
 
-    ##################################################################################
-    # Adding the lilypond code                                                       #
-    ##################################################################################
-
-    # The template, chords.ly,  is provided within the Anki lilypond add-on,
-    # and stored in: /home/stefano/.local/share/Anki2/addons21/123418104/user_files/chords.ly
-    # but it is copied here for reference:
-
-    # \version "2.24.3"
-    # \language "italiano"
-    # #(set-global-staff-size 24)
-    #
-    # \paper{
-    #   indent=0\mm
-    #   line-width=120\mm
-    #   oddFooterMarkup=##f
-    #   oddHeaderMarkup=##f
-    #   bookTitleMarkup = ##f
-    #   scoreTitleMarkup = ##f
-    # }
-    #
-    # \relative c'' { %ANKI% }
-
-    # As the code to be put into the lilypond fields is not easily abstracted,
-    # a different pattern must be provided for every single field.
-    # The simple pattern is as follows (illustrated for A7, shell voicing off 3rd):
-    #
-    # Notice that the durations and octave placements of the pitches must be added,
-    # and are voicing-dependents.
-    #
-    # \version "2.24.3"
-    # \language "italiano"
-    #
-    # \score {
-    #           \new GrandStaff
-    #         <<
-    #         \new Staff \relative  {dod'1 }
-    #         \new Staff \relative {sol1 }
-    #
-    #         >>
-    #         \midi {}
-    #         }
-    #
-    # This structure leads well to the use of the Template class,
-    # with only two placeholders needed, trebleClefNotes and bassClefNotes.
-    # Notice that:
-    # - The score will always have two staves, even when only the top one will be used
-    # - Durations and octave placement must be added to the pitches
-    # - The clef directive is NOT included in the template and must be added
-
-    # Template for all patterns:
-    #
-    # TO DO: Need to change paper parameters and/or lilypond call to have score possibly with alpha channel back
-    #        and definitely smaller.
-
-    lilypondString = """[lilypond=void]
-                        \\paper{indent=0\\mm
-                                line-width=120\\mm
-                                width=50\\mm
-                                height=50\\mm
-                                oddFooterMarkup=##f
-                                oddHeaderMarkup=##f
-                                bookTitleMarkup = ##f
-                                scoreTitleMarkup = ##f
-                                } 
-                         \\version "2.24.3"
-                         \\language "italiano"
-                         \\score {
-                                  \\new GrandStaff
-                                  <<
-                                    \\new Staff \\relative  {$trebleClefNotes}
-                                    \\new Staff \\relative {$bassClefNotes}
-    
-                                >>
-                                \\layout {}
-                                \\midi {}
-                                }
-                         [/lilypond]"""
-    lilypondTemplate = Template(lilypondString)
-
-    tempChordsData = []  # Needed to copy the modified record over
-    for chordItem in chordsData:
-        # Proceeding in order:
-        # Rootless Voicing off 3rd
-        chordItem = addLilyRootlessVoicing(chordItem, 'Rootless_V_Off_3rd', lilypondTemplate)
-        chordItem = addLilyRootlessVoicing(chordItem, 'Rootless_V_Off_7th', lilypondTemplate)
-        chordItem = addLilyGuideToneVoicing(chordItem, 'GuideTones_V_Off_3rd', lilypondTemplate)
-        chordItem = addLilyGuideToneVoicing(chordItem, 'GuideTones_V_Off_7th', lilypondTemplate)
-        chordItem = addLilyShellExtVoicing(chordItem, 'FourNotesSh_Ext_V_Off_3rd', lilypondTemplate)
-        chordItem = addLilyShellExtVoicing(chordItem, 'FourNotesSh_Ext_V_Off_7th', lilypondTemplate)
-        tempChordsData.append(chordItem)
-        print(chordItem['Name'], ' --> ',
-              chordItem['Rootless_V_Off_3rd'], '-->',
-              chordItem['Rootless_V_Off_3rd_lilypond'], '-->',
-              chordItem['Rootless_V_Off_7th_lilypond'])
-
-    chordsData = tempChordsData
-
-    ##################################################################################
-    # End of Lilypond code                                                           #
-    ##################################################################################
+    chordsData = addLilypondVoicings(chordsData, lilypondTemplate)
+    for chord in chordsData:
+        chord = useProperMusicNotation(chord)
 
     ##################################################################################
     # Adding the ABC code       (PERHAPS ADD A CONVERSION FROM LILYPOND MIDI?)       #
@@ -205,22 +102,22 @@ def main():
             {
                 'name': 'NotesRootless3',
                 'qfmt': '<center><font size=8>Notes in </font><hr> <font size=14>Rootless shell voicing, <br> <bold>off 3rd</bold> for: </font><hr> <font size=16>{{Name}}',
-                'afmt': '{{FrontSide}}<hr id="answer">{{Rootless_V_Off_3rd}} <hr><center>{{Rootless_V_Off_3rd_lilypond}}</center>',
+                'afmt': '{{FrontSide}}<hr id="answer">{{Rootless_V_Off_3rd}} <hr><center>{{Rootless_V_Off_3rd_lilypondimg}}</center>',
             },
             {
                 'name': 'NotesRootless7',
-                'qfmt': '<center><font size=8>Notes in </font><hr> <font size=14>Rootless shell voicing, <br> <bold>off 3rd</bold> for: </font><hr><font size=16>{{Name}}',
-                'afmt': '{{FrontSide}}<hr id="answer">{{Rootless_V_Off_7th}}<hr><center>{{Rootless_V_Off_7th_lilypond}}</center>',
+                'qfmt': '<center><font size=8>Notes in </font><hr> <font size=14>Rootless shell voicing, <br> <bold>off 7th</bold> for: </font><hr><font size=16>{{Name}}',
+                'afmt': '{{FrontSide}}<hr id="answer">{{Rootless_V_Off_7th}}<hr><center>{{Rootless_V_Off_7th_lilypondimg}}</center>',
             },
             {
                 'name': 'NotesGuideTones3',
                 'qfmt': '<center><font size=8>Notes in </font><hr> <font size=14>Lead tones 3-note voicing, <br> <bold>off 3rd</bold> for: </font><hr><font size=16>{{Name}}',
-                'afmt': '{{FrontSide}}<hr id="answer">{{GuideTones_V_Off_3rd}}<hr><center>{{GuideTones_V_Off_3rd_lilypond}}</center>',
+                'afmt': '{{FrontSide}}<hr id="answer">{{GuideTones_V_Off_3rd}}<hr><center>{{GuideTones_V_Off_3rd_lilypondimg}}</center>',
             },
             {
                 'name': 'NotesGuideTones7',
-                'qfmt': '<center><font size=8>Notes in </font><hr> <font size=14>Rootless shell voicing, <br> <bold>off 3rd</bold> for: </font><hr><font size=16>{{Name}}',
-                'afmt': '{{FrontSide}}<hr id="answer">{{GuideTones_V_Off_7th}}<hr><center>{{GuideTones_V_Off_7th_lilypond}}</center>',
+                'qfmt': '<center><font size=8>Notes in </font><hr> <font size=14>Lead tones 3-note voicing, <br> <bold>off 7th</bold> for: </font><hr><font size=16>{{Name}}',
+                'afmt': '{{FrontSide}}<hr id="answer">{{GuideTones_V_Off_7th}}<hr><center>{{GuideTones_V_Off_7th_lilypondimg}}</center>',
             },
 
         ])
@@ -255,6 +152,65 @@ def main():
     genanki.Package(ankiChordsDeck).write_to_file(deckFileName)
 
     print(len(ankiNotes), "cards generated and saved into deck ", deckFileName)
+
+
+def addLilypondVoicings(chordsData, lilypondTemplate):
+    """Create voicings for all chords from the chord note a the Lilypond template"""
+
+    tempChordsData = []  # Needed to copy the modified record over
+    for chordItem in chordsData:
+        # Proceeding in order:
+        # Rootless Voicing off 3rd
+        chordItem = addLilyRootlessVoicing(chordItem, 'Rootless_V_Off_3rd', lilypondTemplate)
+        chordItem = addLilyRootlessVoicing(chordItem, 'Rootless_V_Off_7th', lilypondTemplate)
+        chordItem = addLilyGuideToneVoicing(chordItem, 'GuideTones_V_Off_3rd', lilypondTemplate)
+        chordItem = addLilyGuideToneVoicing(chordItem, 'GuideTones_V_Off_7th', lilypondTemplate)
+        chordItem = addLilyShellExtVoicing(chordItem, 'FourNotesSh_Ext_V_Off_3rd', lilypondTemplate)
+        chordItem = addLilyShellExtVoicing(chordItem, 'FourNotesSh_Ext_V_Off_7th', lilypondTemplate)
+        tempChordsData.append(chordItem)
+        print(chordItem['Name'], ' --> ',
+              chordItem['Rootless_V_Off_3rd'], '-->',
+              chordItem['Rootless_V_Off_3rd_lilypond'], '-->',
+              chordItem['Rootless_V_Off_7th_lilypond'])
+    chordsData = tempChordsData
+    return chordsData
+
+
+def getLilyPondTempl():
+    """Return the template to be used in the LilyPond fields of all the chords.
+        We bypass the templates the Anki lilypond add-on uses and provide our own.
+    """
+
+    return Template("""[lilypond=void]
+                        \\paper{#(set-paper-size '(cons (* 100 mm) (* 50 mm)))
+                                indent=0\\mm
+                                oddFooterMarkup=##f
+                                oddHeaderMarkup=##f
+                                bookTitleMarkup = ##f
+                                scoreTitleMarkup = ##f
+                                } 
+                         \\version "2.24.3"
+                         \\language "italiano"
+                         \\score {
+                                  \\new GrandStaff
+                                  <<
+                                    \\new Staff \\relative  {$trebleClefNotes}
+                                    \\new Staff \\relative {$bassClefNotes}
+    
+                                >>
+                                \\layout {}
+                                \\midi {}
+                                }
+                         [/lilypond]""")
+
+
+def initVariables():
+    """Define global variables"""
+    chordsData= []  # Holds all the data about chords, partly read from file and partly generated here
+    ankiNotes = []  # Holds all the notes generated from chordsData
+    ankiFields= []  # Holds the fields names for the anki model
+    return chordsData, ankiNotes, ankiFields
+
 
 #########################################################################################
 #                                      FUNCTIONS                                        #
@@ -309,6 +265,23 @@ def addLilyShellExtVoicing(chordRecord, voicing, lilyPattern, duration=1, octave
         """
 
     return chordRecord
+
+def useProperMusicNotation(chordRecord):
+    """Replace flat and sharp shorthands with proper musical notation in literal fields"""
+
+    fields = ["Root_it", "Rootless_V_Off_3rd", "Rootless_V_Off_7th",
+              "GuideTones_V_Off_3rd", "GuideTones_V_Off_7th",
+              "FourNotesSh_Ext_V_Off_3rd", "FourNotesSh_Ext_V_Off_7th"]
+    newChordRecord=chordRecord
+    properNotationDict = dict(createEnglItTransDicts()[0].values())
+    for field in fields:
+        newField = []
+        if len(newChordRecord[field]) > 0:
+            for note in newChordRecord[field].split():
+                print(field, ' --> ' ,note)
+                newField.append(properNotationDict[note])
+            newChordRecord[field]=' '.join(newField)
+    return newChordRecord
 
 if __name__ == '__main__':
     main()
