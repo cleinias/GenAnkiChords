@@ -9,18 +9,43 @@ import genanki
 import csv
 from string import Template
 import html
+import re
 
-# Constants
-chordsDatafile = "ChordsData.csv"
-model_id = 1149467492  # randomly generated with import random; random.randrange(1 << 30, 1 << 31)
-deck_id = 1393751746  # randomly generated with import random; random.randrange(1 << 30, 1 << 31)
-deckName = "Comping Chords"
-deckFileName = "Comping-Chords.apkg"
+#################################################################################################
+#                                                CONSTANTS                                      #
+#################################################################################################
+def initConstants():
+    chordsDatafile = "ChordsData.csv"
+    model_id = 1149467492  # randomly generated with import random; random.randrange(1 << 30, 1 << 31)
+    deck_id = 1393751746  # randomly generated with import random; random.randrange(1 << 30, 1 << 31)
+    deckName = "Comping Chords"
+    deckFileName = "Comping-Chords.apkg"
+    createEnglItTransDict()
+def createEnglItTransDict():
+    """
+    Instantiate two dictionaries for English to Italian and Italian to English translations
+    of note names, including a version with unicode symbols for sharps and flats
+    """
+    engl2ItNotes = dict(A="La", Af="Lab", As="Lad", B="Si", Bf="Sib", Bs="Sid", C="Do", Cf="Dob", Cs="Dod", D="Re", Df="Red",
+                   E="Mi", Ef="Mib", Es="Mis", F="Fa", Fs="Fas", Ff="Fab", G="Sol", Gs="Sold", Gb="Solb")
+    it2EnglNotes = {y: x for x, y in engl2ItNotes.items()}
+
+    for key, note  in engl2ItNotes.items():
+        oldNote = note
+        note = re.sub(r"b$","\u266D",note)
+        note = re.sub(r"d$","\u266F",note)
+        engl2ItNotes[key]=[oldNote,note]
+
+    for key, note  in it2EnglNotes.items():
+        oldNote = note
+        note = re.sub(r"f$","\u266D",note)
+        note = re.sub(r"s$","\u266F",note)
+        it2EnglNotes[key]=[oldNote,note]
 
 def main():
     # Reading the chords data into a dictionary indexed
     # with the field names from the first row of the chords data file
-
+    initConstants()  # instantiate constants
     # Variables
     chordsData = []  # Holds all the data about chords, partly read from file and partly generated here
     ankiNotes = []  # Holds all the notes generated from chordsData
@@ -92,7 +117,20 @@ def main():
     # - The clef directive is NOT included in the template and must be added
 
     # Template for all patterns:
-    lilypondString = """[lilypond=void] 
+    #
+    # TO DO: Need to change paper parameters and/or lilypond call to have score possibly with alpha channel back
+    #        and definitely smaller.
+
+    lilypondString = """[lilypond=void]
+                        \\paper{indent=0\\mm
+                                line-width=120\\mm
+                                width=50\\mm
+                                height=50\\mm
+                                oddFooterMarkup=##f
+                                oddHeaderMarkup=##f
+                                bookTitleMarkup = ##f
+                                scoreTitleMarkup = ##f
+                                } 
                          \\version "2.24.3"
                          \\language "italiano"
                          \\score {
