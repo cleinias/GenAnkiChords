@@ -92,7 +92,7 @@ def main():
     # - The clef directive is NOT included in the template and must be added
 
     # Template for all patterns:
-    lilypondString = """[lilypond=chords] 
+    lilypondString = """[lilypond=void] 
                          \\version "2.24.3"
                          \\language "italiano"
                          \\score {
@@ -102,6 +102,7 @@ def main():
                                     \\new Staff \\relative {$bassClefNotes}
     
                                 >>
+                                \\layout {}
                                 \\midi {}
                                 }
                          [/lilypond]"""
@@ -221,15 +222,15 @@ def addLilyRootlessVoicing(chordRecord, voicing, lilyPattern, duration=1, octave
         (chordRecord, passed as a parameter).
         Return the updated record."""
 
-    treblePattern = Template('${low}' + octave + str(duration) + ' ' + '${high}' + octave + str(duration))
+    treblePattern = Template('<< ${low}' + octave + str(duration) + ' ' + '${high}' + octave + str(duration)+'>>')
     bassPattern = Template('\\clef bass $low $high')
     notes = chordRecord[voicing]
     if notes.strip():
         notesList = notes.split()
-        treble = treblePattern.substitute(low=notesList[0], high=notesList[1])
-        bass = bassPattern.substitute(low=' ', high=' ')
+        treble = treblePattern.substitute(low=notesList[0].lower(), high=notesList[1].lower())
+        bass = bassPattern.substitute(low='r1 ', high=' ')
         lilypondCode = lilyPattern.substitute(trebleClefNotes=treble, bassClefNotes=bass)
-        chordRecord[voicing] = html.escape(lilypondCode)
+        chordRecord[voicing+'_lilypond'] = html.escape(lilypondCode)
     return chordRecord
 
 
@@ -240,15 +241,15 @@ def addLilyGuideToneVoicing(chordRecord, voicing, lilyPattern, duration=1, octav
         (chordRecord, passed as a parameter).
         Return the updated record."""
 
-    treblePattern = Template('${low}' + octave + str(duration) + ' ' + '${high}' + octave + str(duration))
+    treblePattern = Template('<< ${low}' + octave + str(duration) + ' ' + '${high}' + octave + str(duration)+ ' >>')
     bassPattern = Template('\\clef bass $low')
     notes = chordRecord[voicing]
     if notes.strip():
         notesList = notes.split()
-        treble = treblePattern.substitute(low=notesList[1], high=notesList[2])
-        bass = bassPattern.substitute(low=notesList[0])
+        treble = treblePattern.substitute(low=notesList[1].lower(), high=notesList[2].lower())
+        bass = bassPattern.substitute(low=notesList[0].lower())
         lilypondCode = lilyPattern.substitute(trebleClefNotes=treble, bassClefNotes=bass)
-        chordRecord[voicing] = html.escape(lilypondCode)
+        chordRecord[voicing+'_lilypond'] = html.escape(lilypondCode)
     return chordRecord
 
 
