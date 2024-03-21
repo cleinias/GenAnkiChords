@@ -92,35 +92,7 @@ def main():
 
     # print(chordsData[5])
 
-    # Generating the model, i.e.,  the note type and the templates
-    #
-    chord_model = genanki.Model(
-        model_id,
-        'Chords',
-        fields=ankiFields,
-        templates=[
-            {
-                'name': 'NotesRootless3',
-                'qfmt': '<center><font size=8>Notes in </font><hr> <font size=14>Rootless shell voicing, <br> <bold>off 3rd</bold> for: </font><hr> <font size=16>{{Name}}',
-                'afmt': '{{FrontSide}}<hr id="answer">{{Rootless_V_Off_3rd}} <hr><center>{{Rootless_V_Off_3rd_lilypondimg}}</center>',
-            },
-            {
-                'name': 'NotesRootless7',
-                'qfmt': '<center><font size=8>Notes in </font><hr> <font size=14>Rootless shell voicing, <br> <bold>off 7th</bold> for: </font><hr><font size=16>{{Name}}',
-                'afmt': '{{FrontSide}}<hr id="answer">{{Rootless_V_Off_7th}}<hr><center>{{Rootless_V_Off_7th_lilypondimg}}</center>',
-            },
-            {
-                'name': 'NotesGuideTones3',
-                'qfmt': '<center><font size=8>Notes in </font><hr> <font size=14>Lead tones 3-note voicing, <br> <bold>off 3rd</bold> for: </font><hr><font size=16>{{Name}}',
-                'afmt': '{{FrontSide}}<hr id="answer">{{GuideTones_V_Off_3rd}}<hr><center>{{GuideTones_V_Off_3rd_lilypondimg}}</center>',
-            },
-            {
-                'name': 'NotesGuideTones7',
-                'qfmt': '<center><font size=8>Notes in </font><hr> <font size=14>Lead tones 3-note voicing, <br> <bold>off 7th</bold> for: </font><hr><font size=16>{{Name}}',
-                'afmt': '{{FrontSide}}<hr id="answer">{{GuideTones_V_Off_7th}}<hr><center>{{GuideTones_V_Off_7th_lilypondimg}}</center>',
-            },
-
-        ])
+    chord_model = createChordModel(ankiFields, model_id)
 
     # i=1
     # for line in zip(fields,list(chordsData[1].values())):
@@ -154,6 +126,40 @@ def main():
     print(len(ankiNotes), "cards generated and saved into deck ", deckFileName)
 
 
+def createChordModel(ankiFields, model_id):
+    """ Generate the model, i.e.,  the note type and the card templates
+    """
+
+    chord_model = genanki.Model(
+        model_id,
+        'Chords',
+        fields=ankiFields,
+        templates=[
+            {
+                'name': 'NotesRootless3',
+                'qfmt': '<center><font size=8>Notes in </font><hr> <font size=14>Rootless shell voicing, <br> <bold>off 3rd</bold> for: </font><hr> <font size=16>{{Name}}',
+                'afmt': '{{FrontSide}}<hr id="answer">{{Rootless_V_Off_3rd}} <hr><center>{{Rootless_V_Off_3rd-lilypond}}</center>',
+            },
+            {
+                'name': 'NotesRootless7',
+                'qfmt': '<center><font size=8>Notes in </font><hr> <font size=14>Rootless shell voicing, <br> <bold>off 7th</bold> for: </font><hr><font size=16>{{Name}}',
+                'afmt': '{{FrontSide}}<hr id="answer">{{Rootless_V_Off_7th}}<hr><center>{{Rootless_V_Off_7th-lilypond}}</center>',
+            },
+            {
+                'name': 'NotesGuideTones3',
+                'qfmt': '<center><font size=8>Notes in </font><hr> <font size=14>Lead tones 3-note voicing, <br> <bold>off 3rd</bold> for: </font><hr><font size=16>{{Name}}',
+                'afmt': '{{FrontSide}}<hr id="answer">{{GuideTones_V_Off_3rd}}<hr><center>{{GuideTones_V_Off_3rd-lilypond}}</center>',
+            },
+            {
+                'name': 'NotesGuideTones7',
+                'qfmt': '<center><font size=8>Notes in </font><hr> <font size=14>Lead tones 3-note voicing, <br> <bold>off 7th</bold> for: </font><hr><font size=16>{{Name}}',
+                'afmt': '{{FrontSide}}<hr id="answer">{{GuideTones_V_Off_7th}}<hr><center>{{GuideTones_V_Off_7th-lilypond}}</center>',
+            },
+
+        ])
+    return chord_model
+
+
 def addLilypondVoicings(chordsData, lilypondTemplate):
     """Create voicings for all chords from the chord note a the Lilypond template"""
 
@@ -170,8 +176,8 @@ def addLilypondVoicings(chordsData, lilypondTemplate):
         tempChordsData.append(chordItem)
         print(chordItem['Name'], ' --> ',
               chordItem['Rootless_V_Off_3rd'], '-->',
-              chordItem['Rootless_V_Off_3rd_lilypond'], '-->',
-              chordItem['Rootless_V_Off_7th_lilypond'])
+              chordItem['Rootless_V_Off_3rd-lilypond'], '-->',
+              chordItem['Rootless_V_Off_7th-lilypond'])
     chordsData = tempChordsData
     return chordsData
 
@@ -232,7 +238,7 @@ def addLilyRootlessVoicing(chordRecord, voicing, lilyPattern, duration=1, octave
         treble = treblePattern.substitute(low=notesList[0].lower(), high=notesList[1].lower())
         bass = bassPattern.substitute(low='r1 ', high=' ')
         lilypondCode = lilyPattern.substitute(trebleClefNotes=treble, bassClefNotes=bass)
-        chordRecord[voicing+'_lilypond'] = html.escape(lilypondCode)
+        chordRecord[voicing+'-lilypond'] = html.escape(lilypondCode)
     return chordRecord
 
 
@@ -251,7 +257,7 @@ def addLilyGuideToneVoicing(chordRecord, voicing, lilyPattern, duration=1, octav
         treble = treblePattern.substitute(low=notesList[1].lower(), high=notesList[2].lower())
         bass = bassPattern.substitute(low=notesList[0].lower())
         lilypondCode = lilyPattern.substitute(trebleClefNotes=treble, bassClefNotes=bass)
-        chordRecord[voicing+'_lilypond'] = html.escape(lilypondCode)
+        chordRecord[voicing+'-lilypond'] = html.escape(lilypondCode)
     return chordRecord
 
 
@@ -267,7 +273,9 @@ def addLilyShellExtVoicing(chordRecord, voicing, lilyPattern, duration=1, octave
     return chordRecord
 
 def useProperMusicNotation(chordRecord):
-    """Replace flat and sharp shorthands with proper musical notation in literal fields"""
+    """ Replace accidental abbreviations with proper musical notation in root and voicing fields.
+        Must be run after generation of lilypond code (lilypond relies on shorthand notation).
+    """
 
     fields = ["Root_it", "Rootless_V_Off_3rd", "Rootless_V_Off_7th",
               "GuideTones_V_Off_3rd", "GuideTones_V_Off_7th",
