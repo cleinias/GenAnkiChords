@@ -17,11 +17,13 @@ import csv
 from string import Template
 import html
 import re
+from musicpy.structures import chord as mpChord, note as mpNote
+from musicpy import get_chord
 
 #################################################################################################
 #                                                Globals                                        #
 #################################################################################################
-def initConstants():
+def initGlobals():
     chordsDatafile = "ChordsData.csv"
     ankiLocalPath = '/home/stefano/.local/share/Anki2/Stefano/'
     ankiMediaRepo = 'collection.media'
@@ -33,10 +35,69 @@ def initConstants():
     engl2ItNotes, it2EnglNotes = createEnglItTransDicts()
     return chordsDatafile,  model_id, deck_id, deckName, deckFileName, engl2ItNotes, it2EnglNotes
 
+    # for chord generation
+    roots =  ['C', 'C#', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B']
+    qualities = ['maj7', 'min7', 'halfdim', 'dom7']
+    voicings = ['ShellV', 'GuideTones', 'FourNotesShExt']
+    newchordsData = createChordItems((roots,qualities))
 #########################################################################################
 #                                      FUNCTIONS                                        #
 #########################################################################################
+def createChordItems(roots,qualities):
+    """
+    Create a chordItem row from a list of roots and a list of qualities,
+    including a musicpy Chord type
+    :param roots:  a list of chord roots
+    :param qualities: a list of chord qualities
+    :return chordItems: a dictionary of chorditems indexed by root-quality
+    """
+    chordItems = {}
+    for root in roots:
+        for quality in qualities:
+            chordItems[root+'-',quality].append(root)
+            chordItems[root + '-', quality].append(quality)
+            chordItems[root+'-',quality].append(get_chord(root, quality))
+    return chordItems
 
+def addVoicings(chordItems, voicings):
+    """
+    TODO
+    Add notes for all the voicings of a chord and all related fields (lilypond, sound, etc.) to a chordItem
+    :param chordItems:
+    :return:
+    """
+    return chordItem
+
+def addShellV(chordItem):
+    """
+    TODO
+    Add notes for the Shell Voicing (both off 3rd and off-7th)
+    and all related fields (lilypond, sound, etc.) to a chordItem
+    :param chordItem:
+    :return chordItem:
+    """
+
+
+def addGuideTonesVoicing(chordItem):
+    """
+    TODO
+    Add notes for the Guide Tone (both off 3rd and off-7th)
+    and all related fields (lilypond, sound, etc.) to a chordItem
+    :param chordItem:
+    :return chordItem:
+    """
+    return chordItem
+
+
+def addFourNotesShExtVoicing(chordItem):
+    """
+    TODO
+    Add notes for the FourNotesShExt voicing (both off 3rd and off-7th)
+    and all related fields (lilypond, sound, etc.) to a chordItem
+    :param chordItem:
+    :return chordItem:
+    """
+    return chordItem
 
 
 def main():
@@ -44,7 +105,7 @@ def main():
     # with the field names from the first row of the chords data file
 
     # instantiate constants
-    chordsDatafile,  model_id, deck_id, deckName, deckFileName, engl2ItNotes, it2EnglNotes = initConstants()
+    chordsDatafile,  model_id, deck_id, deckName, deckFileName, engl2ItNotes, it2EnglNotes = initGlobals()
     ankiFields, ankiNotes, chordsData = initVariables()
     lilypondTemplate = getLilyPondTempl()
 
@@ -73,13 +134,13 @@ def main():
 
     ##################################################################################
     # Generate and add image files from Lilypond code                                #
-    # TO DO                                                                          #
+    # TODO                                                                          #
     ##################################################################################
     chordsData = genLilypondImg(chordsData)
 
     ##################################################################################
     # Generate and add sound files from Lilypond-produced MIDi code                  #
-    # TO DO                                                                          #
+    # TODO                                                                          #
     ##################################################################################
 
     chordsData = genSoundFiles(chordsData)
@@ -132,7 +193,7 @@ def main():
 
 def genSoundFiles(chordsData):
     """
-    TO DO
+    TODO
     Generate sound files from the Lilypond-generated MIDI file, and store the src link in the
     appropriate field of chordsData items
     :param chordsData:
@@ -143,7 +204,7 @@ def genSoundFiles(chordsData):
 
 def genLilypondImg(chordsData):
     """
-    TO DO
+    TODO
     Generate score image from the Lilypond code and store the src img link in the appropriate field
     :param chordsData:
     :return:
@@ -313,7 +374,7 @@ def addLilyShellExtVoicing(chordRecord, voicing, lilyPattern, duration=1, octave
         FourNotesSh_Ext_V_Off_7th fields (fieldname passed as parameter) of the chord record
         (chordRecord, passed as a parameter).
         Return the updated record.
-        TO DO
+        TODO
         """
 
     return chordRecord
