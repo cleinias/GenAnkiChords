@@ -2,12 +2,7 @@
 # -*- coding: utf-8 -*-
 # Simple file to generate an Anki deck for chords
 # Copyright (c) 2024 Stefano Franchi <stefano.franchi@gmail.com>
-# License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/gpl.html
-#
-# for the Lilypond generation code:
-# Copyright (c) 2012 Andreas Klauer <Andreas.Klauer@metamorpher.de>
-# Copyright (c) 2019 Luca Panno <panno.luca@gmail.com>
-# License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
+# License: GNU GPL, version 3 or later; http://www.gnu.org/licenses/gpl.html
 ######################################################################################
 
 
@@ -17,9 +12,15 @@ import csv
 from string import Template
 import html
 import re
-from musicpy.structures import chord as mpChord, note as mpNote
-from musicpy import get_chord
-
+from mingus.core import chords as mChords
+from mingus.containers import Note as mNote
+from mingus.containers import NoteContainer as mNote_container
+from mingus.containers import Bar as mBar
+from mingus.extra import lilypond as LilyPond
+from mingus.midi.midi_file_out import write_Bar as mMidiFileOut
+from  pydub  import AudioSegment
+import subprocess
+from dataclasses import dataclass
 #################################################################################################
 #                                                Globals                                        #
 #################################################################################################
@@ -33,40 +34,119 @@ def initGlobals():
     deckName= "Comping Chords"
     deckFileName= "Comping-Chords.apkg"
     engl2ItNotes, it2EnglNotes = createEnglItTransDicts()
-    return chordsDatafile,  model_id, deck_id, deckName, deckFileName, engl2ItNotes, it2EnglNotes
+    soundFont = '/usr/share/soundfonts/FluidR3_GM.sf2'
+    return chordsDatafile,  model_id, deck_id, deckName, deckFileName, engl2ItNotes, it2EnglNotes, soundFont
 
     # for chord generation
     roots =  ['C', 'C#', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B']
     qualities = ['maj7', 'min7', 'halfdim', 'dom7']
-    voicings = ['ShellV', 'GuideTones', 'FourNotesShExt']
     newchordsData = createChordItems((roots,qualities))
+
+    # for fieldNames generation in chordItems
+    extraFields = 'sortId'
+
+#########################################################################################
+#                                      CLASSES                                          #
+#########################################################################################
+class GenAnkiChords():
+    """
+    Contains the procedural code generating the notes--it is a singleton
+    """
+
+    # Define the basic chords the app will build notes for as roots and qualities
+    roots = ['Gb', 'Db', 'Ab', 'Eb', 'Bb', 'F', 'C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#', 'G#', 'D#', 'A#']
+    qualities = ['M7', 'm7', 'm7b5']
+    voicings = ['ShellV', 'GuideTones', 'FourNotesShExt']
+    auxFieldsSuffixes = ['LH', 'RH', 'LilyPond', 'LilyPondMidiLink', 'lilypondMidiSndLink']
+    startNotes = ['Off3rd', 'Off7th']
+    chordItems = {}  # The db-like data structure that holds one row per chord+quality
+
+    def __init__(self):
+        """
+        Initialize variables and all the parameters of the app, then build all the ChordItems
+        """
+
+        # generate the chordItems and add all the auxiliary fields
+        self.genChordItems()
+
+        # generate and add the auxiliary fields
+        self.genAddAuxFields()
+
+        # generate and add the auxiliary files
+        self.genAddAuxFiles()
+
+    def genChordItems(chordItems,roots, qualities):
+        """
+        Create a chordItem row from a list of roots and a list of qualities,
+        including a mingus  Chord type
+        :param roots:  a list of chord roots
+        :param qualities: a list of chord qualities
+        :return chordItems: a dictionary of chorditems indexed by root-quality:
+        """
+        for root in roots:
+            for quality in qualities:
+                chordItems[root + '-', quality].append(root)
+                chordItems[root + '-', quality].append(quality)
+                chordItems[root + '-', quality].append(mChords.from_shorthand(root + quality))
+
+
+
+@dataclass
+class ChordItem(object):
+    __slots__ = ['sortId', 'name', 'root', 'quality', 'chord','inversion', 'voicings']
+    basicVoicings = ['ShellV', 'GuideTones', 'FourNotesShExt']
+
+    def genAddAuxFiles(self):
+        """
+        TODO
+        Generate the auxiliary files for every chordItems (png from LilyPond, sound from MIDi, fingerings)
+        :return:
+        """
+        pass
+
+    def addAuxiliaryFields(self):
+        for voicing in self.basicVoicings:
+            v = Voicing(self.chord)
+            try:
+                genVoicingMethod = getattr(Voicing, 'gen'+voicing)
+                self.voicings.append(v.genVoicingMethod())
+            except AttributeError:
+                raise NotImplementedError(
+                    "Class `{}` does not implement `{}`".format(Voicing.__class__.__name__, genVoicingMethod))
+
+
+
+class Voicing():
+    """
+    Instances of this class know how to generate a list of notes
+    and auxiliary files (lilypond, png, MID), etc.) for a chord.
+    """
+
+    fields = [] # the list of generated fields containing all the data for the given chord and voicing
+    startNotes = ['Off3rd', 'Off7th']
+    auxiliaryFieldsSuffixes = ['LH', 'RH', 'LilyPond', 'LilyPondMidiLink', 'lilypondMidiSndLink']
+
+    def __init__(self,chord :list):
+        self.chord = chord
+
+    def genShellV(self):
+        """ TODO """
+
+        self.fields = []
+
+    def genGuideTonesV(self):
+        """ TODO """
+
+        pass
+
+    def genFourNotesShExtV(self):
+        """ TODO """
+
+        pass
+
 #########################################################################################
 #                                      FUNCTIONS                                        #
 #########################################################################################
-def createChordItems(roots,qualities):
-    """
-    Create a chordItem row from a list of roots and a list of qualities,
-    including a musicpy Chord type
-    :param roots:  a list of chord roots
-    :param qualities: a list of chord qualities
-    :return chordItems: a dictionary of chorditems indexed by root-quality
-    """
-    chordItems = {}
-    for root in roots:
-        for quality in qualities:
-            chordItems[root+'-',quality].append(root)
-            chordItems[root + '-', quality].append(quality)
-            chordItems[root+'-',quality].append(get_chord(root, quality))
-    return chordItems
-
-def addVoicings(chordItems, voicings):
-    """
-    TODO
-    Add notes for all the voicings of a chord and all related fields (lilypond, sound, etc.) to a chordItem
-    :param chordItems:
-    :return:
-    """
-    return chordItem
 
 def addShellV(chordItem):
     """
@@ -105,7 +185,7 @@ def main():
     # with the field names from the first row of the chords data file
 
     # instantiate constants
-    chordsDatafile,  model_id, deck_id, deckName, deckFileName, engl2ItNotes, it2EnglNotes = initGlobals()
+    chordsDatafile,  model_id, deck_id, deckName, deckFileName, engl2ItNotes, it2EnglNotes, soundfont = initGlobals()
     ankiFields, ankiNotes, chordsData = initVariables()
     lilypondTemplate = getLilyPondTempl()
 
@@ -323,6 +403,24 @@ def getLilyPondTempl():
 def initVariables():
     """Define global variables"""
     chordsData= []  # Holds all the data about chords, partly read from file and partly generated here
+    fieldNames = ['SortId', 'Name', 'Root', 'Quality', 'Chord',
+                  'Rootless_V_Off_3rd', 'Rootless_V_Off_7th',
+                  'Rootless_V_Off_3rd_RH', 'Rootless_V_Off_3rd_LH', 'Rootless_V_Off_3rd_RH', 'Rootless_V_Off_3rd_LH',
+                  'Rootless_V_Off_3rd_LilyPond', 'Rootless_V_Off_3rd_LilyPond_Image', 'Rootless_V_Off_7th_LilyPond',
+                  'Rootless_V_Off_7th_LilyPond_Image', 'Rootless_V_Off_3rd_ABC', 'Rootless_V_Off_3rd_ABC_mp3',
+                  'Rootless_V_Off_7th_ABC', 'Rootless_V_Off_7th_ABC_mp3',
+                  'GuideTones_V_Off_3rd', 'GuideTones_V_Off_7th', 'GuideTones_V_Off_3rd_RH', 'GuideTones_V_Off_3rd_LH',
+                  'GuideTones_V_Off_3rd_RH', 'GuideTones_V_Off_3rd_LH', 'GuideTones_V_Off_3rd_LilyPond',
+                  'GuideTones_V_Off_3rd_LilyPond_Image', 'GuideTones_V_Off_7th_LilyPond',
+                  'GuideTones_V_Off_7th_LilyPond_Image', 'GuideTones_V_Off_3rd_ABC', 'GuideTones_V_Off_3rd_ABC_mp3',
+                  'GuideTones_V_Off_7th_ABC', 'GuideTones_V_Off_7th_ABC_mp3', 'FourNotesSh_Ext_V_Off_3rd',
+                  'FourNotesSh_Ext_V_Off_7th', 'FourNotesSh_Ext_V_Off_3rd_RH', 'FourNotesSh_Ext_V_Off_3rd_LH',
+                  'FourNotesSh_Ext_V_Off_3rd_RH', 'FourNotesSh_Ext_V_Off_3rd_LH', 'FourNotesSh_Ext_V_Off_3rd_LilyPond',
+                  'FourNotesSh_Ext_V_Off_3rd_LilyPond_Image', 'FourNotesSh_Ext_V_Off_7th_LilyPond',
+                  'FourNotesSh_Ext_V_Off_7th_LilyPond_Image', 'FourNotesSh_Ext_V_Off_3rd_ABC',
+                  'FourNotesSh_Ext_V_Off_3rd_ABC_mp3', 'FourNotesSh_Ext_V_Off_7th_ABC',
+                  'FourNotesSh_Ext_V_Off_7th_ABC_mp3']
+
     ankiNotes = []  # Holds all the notes generated from chordsData
     ankiFields= []  # Holds the fields names for the anki model
     return chordsData, ankiNotes, ankiFields
@@ -425,283 +523,283 @@ Code is based on / inspired by libanki's LaTeX integration and Andreas Klauer's 
 
 
 ########################## TESTS
-import anki.hooks
+
 #############################
 
 # --- Imports: ---
 
-from anki.utils import call, checksum, strip_html, tmpfile
-from aqt import mw
-from aqt.qt import *
-from aqt.utils import getOnlyText, showInfo
+#from anki.utils import call, checksum, strip_html, tmpfile
+#from aqt import mw
+#from aqt.qt import *
+# from aqt.utils import getOnlyText, showInfo
 from html.entities import entitydefs
-import cgi, os, re, shutil
+#import cgi, os, re, shutil
 
 from typing import Any
 from typing import Dict
 
-from anki.cards import Card
-from anki.media import MediaManager
-from anki.models import NoteType
-from aqt.editor import Editor
+# from anki.cards import Card
+# from anki.media import MediaManager
+# from anki.models import NoteType
+# from aqt.editor import Editor
 
-import subprocess
-from . import i18n
-_=i18n._
-from PyQt5.QtWidgets import QMessageBox
+#import subprocess
+#from . import i18n
+#_=i18n._
+#from PyQt5.QtWidgets import QMessageBox
 
-# --- Globals: ---
-
-lilypondTmpFile = tmpfile("lilypond", ".ly")
+# # --- Globals: ---
+#
+# lilypondTmpFile = tmpfile("lilypond", ".ly")
+# # lilypondCmd = ["lilypond", "-V", "-dbackend=eps", "-dno-gs-load-fonts", "-dinclude-eps-fonts", "--o", lilypondTmpFile, "--png", lilypondTmpFile]
 # lilypondCmd = ["lilypond", "-V", "-dbackend=eps", "-dno-gs-load-fonts", "-dinclude-eps-fonts", "--o", lilypondTmpFile, "--png", lilypondTmpFile]
-lilypondCmd = ["lilypond", "-V", "-dbackend=eps", "-dno-gs-load-fonts", "-dinclude-eps-fonts", "--o", lilypondTmpFile, "--png", lilypondTmpFile]
-lilypondPattern = "%ANKI%"
-lilypondSplit = "%%%"
-lilypondTemplate = """\\paper{
-  indent=0\\mm
-  line-width=120\\mm
-  oddFooterMarkup=##f
-  oddHeaderMarkup=##f
-  bookTitleMarkup = ##f
-  scoreTitleMarkup = ##f
-}
-
-\\relative c'' { %s }
-""" % (lilypondPattern,)
-lilypondTemplates = {}
-addonDir=__name__.split(".")[0]
-tplDir = os.path.join(mw.pm.addonFolder(),addonDir,"user_files")
-print("*** ly dir ***") ####debug
-print(tplDir) ####debug
-lilypondTagRegexp = re.compile(        # Match tagged code
-    r"\[lilypond(=(?P<template>[a-z0-9_-]+))?\](?P<code>.+?)\[/lilypond\]", re.DOTALL | re.IGNORECASE)
-lilypondFieldRegexp = re.compile(     # Match LilyPond field names
-    r"^(?P<field>.*)-lilypond(-(?P<template>[a-z0-9_-]+))?$", re.DOTALL | re.IGNORECASE)
-tplNameRegexp = re.compile(r"^[a-z0-9_-]+$", re.DOTALL | re.IGNORECASE) # Template names must match this
-imgTagRegexp = re.compile("^<img.*>$", re.DOTALL | re.IGNORECASE)  # Detects if field already contains rendered img
-imgFieldSuffix="-lilypondimg" # Suffix on LilyPond field destinations
-lilypondCache = {}
-
-# --- Templates: ---
-
-def tplFile(name):
-    '''Build the full filename for template name.'''
-    return os.path.join(tplDir, "%s.ly" % (name,))
-
-def setTemplate(name, content):
-    '''Set and save a template.'''
-    lilypondTemplates[name] = content
-    f = open(tplFile(name), 'w')
-    f.write(content)
-
-def getTemplate(name, code):
-    '''Load template by name and fill it with code.'''
-    if name is None:
-        name="default"
-
-    tpl = None
-
-    if name not in lilypondTemplates:
-        try:
-            tpl = open(tplFile(name)).read()
-            if tpl and lilypondPattern in tpl:
-                lilypondTemplates[name] = tpl
-        except:
-            if name == "default":
-                tpl = lilypondTemplate
-                setTemplate("default", tpl)
-        finally:
-            if name not in lilypondTemplates:
-                raise IOError("LilyPond Template %s not found or not valid." % (name,))
-
-    # Replace one or more occurences of lilypondPattern
-
-    codes = code.split(lilypondSplit)
-
-    r = lilypondTemplates[name]
-
-    for code in codes:
-        r = r.replace(lilypondPattern, code, 1)
-
-    return r
-
-# --- GUI: ---
-
-def templatefiles():
-    '''Produce list of template files.'''
-    return [f for f in os.listdir(tplDir)
-            if f.endswith(".ly")]
-
-
-    for f in templatefiles():
-        m = lm.addMenu(os.path.splitext(f)[0])
-        a = QAction(_("Edit..."), mw)
-        p = os.path.join(tplDir, f)
-        a.triggered.connect(lambda b,p=p: editFile(p))
-        m.addAction(a)
-        a = QAction(_("Delete..."), mw)
-        a.triggered.connect(lambda b,p=p: removeFile(p))
-        m.addAction(a)
-
-# --- Functions: ---
-
-def _lyFromHtml(ly):
-    '''Convert entities and fix newlines.'''
-
-    ly = re.sub(r"<(br|div|p) */?>", "\n", ly)
-    ly = strip_html(ly)
-
-    ly = ly.replace("&nbsp;", " ")
-
-    for match in re.compile(r"&([a-zA-Z]+);").finditer(ly):
-        if match.group(1) in entitydefs:
-            ly = ly.replace(match.group(), entitydefs[match.group(1)])
-
-    return ly
-
-def _buildImg(ly, fname):
-    '''Build the image PNG file itself and add it to the media dir.'''
-    lyfile = open(lilypondTmpFile, "w")
-    lyfile.write(ly.decode("utf-8"))
-    lyfile.close()
-
-    log = open(lilypondTmpFile+".log", "w")
-
-#    if call(lilypondCmd, stdout=log, stderr=log):
-    print("##################################")
-    print('#######   LILYPOND OUTPUT   ######')
-    print("##################################")
-    if call(lilypondCmd):
-        print("Lilypond file: ", lilypondTmpFile)
-        print("Image file: ", lilypondTmpFile+".png")
-        print("##################################")
-        print('#### END OF LILYPOND OUTPUT ######')
-        print("##################################")
-        if call(lilypondCmd):
-            return _errMsg("lilypond")
-
-    # add to media
-    try:
-        shutil.move(lilypondTmpFile+".png", os.path.join(mw.col.media.dir(), fname))
-        print(lilypondTmpFile+".png", "moved to ", os.path.join(mw.col.media.dir(), fname))
-    except:
-        # debugging
-        print("could note move file: ", lilypondTmpFile+".png", "to: ",  os.path.join(mw.col.media.dir(), fname))
-        return _("Could not move LilyPond PNG file to media dir. No output?<br>")+_errMsg("lilypond")
-
-def _imgLink(template, ly):
-    '''Build an <img src> link for given LilyPond code.'''
-
-    # Finalize LilyPond source.
-    ly = getTemplate(template, ly)
-    ly = ly.encode("utf8")
-
-    # Derive image filename from source.
-    fname = "lilypond-%s.png" % (checksum(ly),)
-    link = '<img src="%s" alt=%s>' % (fname,"")
-
-    # Build image if necessary.
-    if os.path.exists(fname):
-        return link
-    else:
-        # avoid erroneous cards killing performance
-        if fname in lilypondCache:
-            return lilypondCache[fname]
-
-        err = _buildImg(ly, fname)
-        if err:
-            lilypondCache[fname] = err
-            return err
-        else:
-            print("Link to source img created --> ", link)
-            return link
-
-def _errMsg(type):
-    '''Error message, will be displayed in the card itself.'''
-    msg = (_("Error executing %s.") % type) + "<br>"
-    try:
-        log = open(lilypondTmpFile+".log", "r").read()
-        if log:
-            msg += """<small><pre style="text-align: left">""" + cgi.escape(log) + "</pre></small>"
-    except:
-        msg += _("Have you installed lilypond? Is your lilypond code correct?")
-    return msg
-
-def _getfields(notetype: Union[NoteType,Dict[str,Any]]):
-    '''Get list of field names for given note type'''
-    return list(field['name'] for field in notetype['flds'])
-
-# --- Hooks: ---
-
-def _mungeString(text: str) -> str:
-    """
-        Replaces tagged LilyPond code with rendered images
-    :return: Text with tags substituted in-place
-    """
-    print('in _mungeString')
-    for match in lilypondTagRegexp.finditer(text):
-        lyCode = _lyFromHtml(match.group(lilypondTagRegexp.groupindex['code']))
-        tplName = match.group(lilypondTagRegexp.groupindex['template'])
-        print('About to replace text in field ', match.group())
-        text = text.replace(
-            match.group(), _imgLink(tplName, lyCode)
-        )
-    print('Out of _mungeString, returning --> ', text)
-    return text
-
-
-def mungeCard(html: str, card: Card, kind: str):
-    print('In mungeCard')
-    if kind.startswith(cardEditorPrefix):
-        # In card editor, may contain invalid but tagged LilyPod code
-        return html
-    return _mungeString(html)
-
-# This is the function that does not work and needs to be changed, possibly using _mungeString instead,
-# or changing the definition to reflect the argument that card_will_show will pass to it
-# (namely: html: str, card: Card, kind: str as per mungeCard). Need to check out the definition of the class Card
-def mungeFields(txt: str, editor: Editor):#fields, model, data, col):
-    '''Parse lilypond tags before they are displayed.'''
-    # Fallback if it can't identify current field
-    # Substitute LilyPond tags
-
-    print('in mungeFields')
-    if editor.currentField is None:
-        return txt
-    fields: list[str] = _getfields(editor.note.model())
-    print('fields: ',fields)
-    field: str = fields[editor.currentField]
-    print('field: ', field)
-    if fieldMatch := lilypondFieldRegexp.match(field):
-        tplName = fieldMatch.group(lilypondFieldRegexp.groupindex['template'])
-        # This is where the function chain to the eventual call to lilypond starts
-        # _imgLink --> _buildImg (which calls it) and returns a link to the image source
-        # Check it the add-on can actually find the image source field:
-        print("The image destination field is: ", fieldMatch.group(lilypondFieldRegexp.groupindex['field']) + imgFieldSuffix,  " Does it exist?")
-        #
-        imgLink= _imgLink(tplName, _lyFromHtml(txt)) if txt != "" else "" # Check to avoid compiling empty templates
-        if (destField := fieldMatch.group(lilypondFieldRegexp.groupindex['field']) + imgFieldSuffix) in fields:
-            # This is where the image gets copied to the image field.
-            # Target field exists, populate it
-            editor.note[destField] = imgLink
-            print('I populated the image field ', destField)
-            return txt
-        else:
-            # Substitute in-place
-                if imgTagRegexp.match(txt):
-                # Field already contains rendered image
-                    return txt
-                else:
-                  return imgLink
-    elif field.endswith(imgFieldSuffix):
-        print('I am in the image field')
-        # Field is a destination for rendered images, won't contain code
-        return txt
-    else:
-        # Normal field
-        # Substitute LilyPond tags
-        return _mungeString(txt)
-
+# lilypondPattern = "%ANKI%"
+# lilypondSplit = "%%%"
+# lilypondTemplate = """\\paper{
+#   indent=0\\mm
+#   line-width=120\\mm
+#   oddFooterMarkup=##f
+#   oddHeaderMarkup=##f
+#   bookTitleMarkup = ##f
+#   scoreTitleMarkup = ##f
+# }
+#
+# \\relative c'' { %s }
+# """ % (lilypondPattern,)
+# lilypondTemplates = {}
+# addonDir=__name__.split(".")[0]
+# tplDir = os.path.join(mw.pm.addonFolder(),addonDir,"user_files")
+# print("*** ly dir ***") ####debug
+# print(tplDir) ####debug
+# lilypondTagRegexp = re.compile(        # Match tagged code
+#     r"\[lilypond(=(?P<template>[a-z0-9_-]+))?\](?P<code>.+?)\[/lilypond\]", re.DOTALL | re.IGNORECASE)
+# lilypondFieldRegexp = re.compile(     # Match LilyPond field names
+#     r"^(?P<field>.*)-lilypond(-(?P<template>[a-z0-9_-]+))?$", re.DOTALL | re.IGNORECASE)
+# tplNameRegexp = re.compile(r"^[a-z0-9_-]+$", re.DOTALL | re.IGNORECASE) # Template names must match this
+# imgTagRegexp = re.compile("^<img.*>$", re.DOTALL | re.IGNORECASE)  # Detects if field already contains rendered img
+# imgFieldSuffix="-lilypondimg" # Suffix on LilyPond field destinations
+# lilypondCache = {}
+#
+# # --- Templates: ---
+#
+# def tplFile(name):
+#     '''Build the full filename for template name.'''
+#     return os.path.join(tplDir, "%s.ly" % (name,))
+#
+# def setTemplate(name, content):
+#     '''Set and save a template.'''
+#     lilypondTemplates[name] = content
+#     f = open(tplFile(name), 'w')
+#     f.write(content)
+#
+# def getTemplate(name, code):
+#     '''Load template by name and fill it with code.'''
+#     if name is None:
+#         name="default"
+#
+#     tpl = None
+#
+#     if name not in lilypondTemplates:
+#         try:
+#             tpl = open(tplFile(name)).read()
+#             if tpl and lilypondPattern in tpl:
+#                 lilypondTemplates[name] = tpl
+#         except:
+#             if name == "default":
+#                 tpl = lilypondTemplate
+#                 setTemplate("default", tpl)
+#         finally:
+#             if name not in lilypondTemplates:
+#                 raise IOError("LilyPond Template %s not found or not valid." % (name,))
+#
+#     # Replace one or more occurences of lilypondPattern
+#
+#     codes = code.split(lilypondSplit)
+#
+#     r = lilypondTemplates[name]
+#
+#     for code in codes:
+#         r = r.replace(lilypondPattern, code, 1)
+#
+#     return r
+#
+# # --- GUI: ---
+#
+# def templatefiles():
+#     '''Produce list of template files.'''
+#     return [f for f in os.listdir(tplDir)
+#             if f.endswith(".ly")]
+#
+#
+#     for f in templatefiles():
+#         m = lm.addMenu(os.path.splitext(f)[0])
+#         a = QAction(_("Edit..."), mw)
+#         p = os.path.join(tplDir, f)
+#         a.triggered.connect(lambda b,p=p: editFile(p))
+#         m.addAction(a)
+#         a = QAction(_("Delete..."), mw)
+#         a.triggered.connect(lambda b,p=p: removeFile(p))
+#         m.addAction(a)
+#
+# # --- Functions: ---
+#
+# def _lyFromHtml(ly):
+#     '''Convert entities and fix newlines.'''
+#
+#     ly = re.sub(r"<(br|div|p) */?>", "\n", ly)
+#     ly = strip_html(ly)
+#
+#     ly = ly.replace("&nbsp;", " ")
+#
+#     for match in re.compile(r"&([a-zA-Z]+);").finditer(ly):
+#         if match.group(1) in entitydefs:
+#             ly = ly.replace(match.group(), entitydefs[match.group(1)])
+#
+#     return ly
+#
+# def _buildImg(ly, fname):
+#     '''Build the image PNG file itself and add it to the media dir.'''
+#     lyfile = open(lilypondTmpFile, "w")
+#     lyfile.write(ly.decode("utf-8"))
+#     lyfile.close()
+#
+#     log = open(lilypondTmpFile+".log", "w")
+#
+# #    if call(lilypondCmd, stdout=log, stderr=log):
+#     print("##################################")
+#     print('#######   LILYPOND OUTPUT   ######')
+#     print("##################################")
+#     if call(lilypondCmd):
+#         print("Lilypond file: ", lilypondTmpFile)
+#         print("Image file: ", lilypondTmpFile+".png")
+#         print("##################################")
+#         print('#### END OF LILYPOND OUTPUT ######')
+#         print("##################################")
+#         if call(lilypondCmd):
+#             return _errMsg("lilypond")
+#
+#     # add to media
+#     try:
+#         shutil.move(lilypondTmpFile+".png", os.path.join(mw.col.media.dir(), fname))
+#         print(lilypondTmpFile+".png", "moved to ", os.path.join(mw.col.media.dir(), fname))
+#     except:
+#         # debugging
+#         print("could note move file: ", lilypondTmpFile+".png", "to: ",  os.path.join(mw.col.media.dir(), fname))
+#         return _("Could not move LilyPond PNG file to media dir. No output?<br>")+_errMsg("lilypond")
+#
+# def _imgLink(template, ly):
+#     '''Build an <img src> link for given LilyPond code.'''
+#
+#     # Finalize LilyPond source.
+#     ly = getTemplate(template, ly)
+#     ly = ly.encode("utf8")
+#
+#     # Derive image filename from source.
+#     fname = "lilypond-%s.png" % (checksum(ly),)
+#     link = '<img src="%s" alt=%s>' % (fname,"")
+#
+#     # Build image if necessary.
+#     if os.path.exists(fname):
+#         return link
+#     else:
+#         # avoid erroneous cards killing performance
+#         if fname in lilypondCache:
+#             return lilypondCache[fname]
+#
+#         err = _buildImg(ly, fname)
+#         if err:
+#             lilypondCache[fname] = err
+#             return err
+#         else:
+#             print("Link to source img created --> ", link)
+#             return link
+#
+# def _errMsg(type):
+#     '''Error message, will be displayed in the card itself.'''
+#     msg = (_("Error executing %s.") % type) + "<br>"
+#     try:
+#         log = open(lilypondTmpFile+".log", "r").read()
+#         if log:
+#             msg += """<small><pre style="text-align: left">""" + cgi.escape(log) + "</pre></small>"
+#     except:
+#         msg += _("Have you installed lilypond? Is your lilypond code correct?")
+#     return msg
+#
+# def _getfields(notetype: Union[NoteType,Dict[str,Any]]):
+#     '''Get list of field names for given note type'''
+#     return list(field['name'] for field in notetype['flds'])
+#
+# # --- Hooks: ---
+#
+# def _mungeString(text: str) -> str:
+#     """
+#         Replaces tagged LilyPond code with rendered images
+#     :return: Text with tags substituted in-place
+#     """
+#     print('in _mungeString')
+#     for match in lilypondTagRegexp.finditer(text):
+#         lyCode = _lyFromHtml(match.group(lilypondTagRegexp.groupindex['code']))
+#         tplName = match.group(lilypondTagRegexp.groupindex['template'])
+#         print('About to replace text in field ', match.group())
+#         text = text.replace(
+#             match.group(), _imgLink(tplName, lyCode)
+#         )
+#     print('Out of _mungeString, returning --> ', text)
+#     return text
+#
+#
+# def mungeCard(html: str, card: Card, kind: str):
+#     print('In mungeCard')
+#     if kind.startswith(cardEditorPrefix):
+#         # In card editor, may contain invalid but tagged LilyPod code
+#         return html
+#     return _mungeString(html)
+#
+# # This is the function that does not work and needs to be changed, possibly using _mungeString instead,
+# # or changing the definition to reflect the argument that card_will_show will pass to it
+# # (namely: html: str, card: Card, kind: str as per mungeCard). Need to check out the definition of the class Card
+# def mungeFields(txt: str, editor: Editor):#fields, model, data, col):
+#     '''Parse lilypond tags before they are displayed.'''
+#     # Fallback if it can't identify current field
+#     # Substitute LilyPond tags
+#
+#     print('in mungeFields')
+#     if editor.currentField is None:
+#         return txt
+#     fields: list[str] = _getfields(editor.note.model())
+#     print('fields: ',fields)
+#     field: str = fields[editor.currentField]
+#     print('field: ', field)
+#     if fieldMatch := lilypondFieldRegexp.match(field):
+#         tplName = fieldMatch.group(lilypondFieldRegexp.groupindex['template'])
+#         # This is where the function chain to the eventual call to lilypond starts
+#         # _imgLink --> _buildImg (which calls it) and returns a link to the image source
+#         # Check it the add-on can actually find the image source field:
+#         print("The image destination field is: ", fieldMatch.group(lilypondFieldRegexp.groupindex['field']) + imgFieldSuffix,  " Does it exist?")
+#         #
+#         imgLink= _imgLink(tplName, _lyFromHtml(txt)) if txt != "" else "" # Check to avoid compiling empty templates
+#         if (destField := fieldMatch.group(lilypondFieldRegexp.groupindex['field']) + imgFieldSuffix) in fields:
+#             # This is where the image gets copied to the image field.
+#             # Target field exists, populate it
+#             editor.note[destField] = imgLink
+#             print('I populated the image field ', destField)
+#             return txt
+#         else:
+#             # Substitute in-place
+#                 if imgTagRegexp.match(txt):
+#                 # Field already contains rendered image
+#                     return txt
+#                 else:
+#                   return imgLink
+#     elif field.endswith(imgFieldSuffix):
+#         print('I am in the image field')
+#         # Field is a destination for rendered images, won't contain code
+#         return txt
+#     else:
+#         # Normal field
+#         # Substitute LilyPond tags
+#         return _mungeString(txt)
+#
 
 
 
