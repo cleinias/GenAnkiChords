@@ -57,8 +57,6 @@ class GenAnkiChords():
     roots = ['Gb', 'Db', 'Ab', 'Eb', 'Bb', 'F', 'C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#', 'G#', 'D#', 'A#']
     qualities = ['M7', 'm7', 'm7b5']
     voicings = ['ShellV', 'GuideTones', 'FourNotesShExt']
-    auxFieldsSuffixes = ['LH', 'RH', 'LilyPond', 'LilyPondMidiLink', 'lilypondMidiSndLink']
-    startNotes = ['Off3rd', 'Off7th']
     chordItems = {}  # The db-like data structure that holds one row per chord+quality
 
     def __init__(self):
@@ -69,11 +67,9 @@ class GenAnkiChords():
         # generate the chordItems and add all the auxiliary fields
         self.genChordItems()
 
-        # generate and add the auxiliary fields
-        self.genAddAuxFields()
+        # generate and add the desired voicings
+        self.genAddVoicing(self.voicings)
 
-        # generate and add the auxiliary files
-        self.genAddAuxFiles()
 
     def genChordItems(chordItems,roots, qualities):
         """
@@ -89,23 +85,25 @@ class GenAnkiChords():
                 chordItems[root + '-', quality].append(quality)
                 chordItems[root + '-', quality].append(mChords.from_shorthand(root + quality))
 
+    def addVocings(self):
+        for chordItem in self.chordItems:
+            chordItem.add
 
 
 @dataclass
 class ChordItem(object):
     __slots__ = ['sortId', 'name', 'root', 'quality', 'chord','inversion', 'voicings']
-    basicVoicings = ['ShellV', 'GuideTones', 'FourNotesShExt']
 
-    def genAddAuxFiles(self):
-        """
-        TODO
-        Generate the auxiliary files for every chordItems (png from LilyPond, sound from MIDi, fingerings)
-        :return:
-        """
-        pass
+    def __init__(self,voicings=[]):
+
 
     def addAuxiliaryFields(self):
-        for voicing in self.basicVoicings:
+        """
+            TODO
+            Generate the auxiliary fields and files for every chordItems (png from LilyPond, sound from MIDI, fingerings)
+            :return:
+        """
+        for voicing in self.voicings:
             v = Voicing(self.chord)
             try:
                 genVoicingMethod = getattr(Voicing, 'gen'+voicing)
@@ -119,15 +117,21 @@ class ChordItem(object):
 class Voicing():
     """
     Instances of this class know how to generate a list of notes
-    and auxiliary files (lilypond, png, MID), etc.) for a chord.
+    and auxiliary files (lilypond, png, MID), etc.) for a chord
+    and for a few voicings
     """
 
     fields = [] # the list of generated fields containing all the data for the given chord and voicing
+    knownVoicings = ['ShellV', 'GuideTones', 'FourNotesShExt'] # the class only knows these voicings
     startNotes = ['Off3rd', 'Off7th']
-    auxiliaryFieldsSuffixes = ['LH', 'RH', 'LilyPond', 'LilyPondMidiLink', 'lilypondMidiSndLink']
+    auxiliaryFieldsSuffixes = ['LH', 'RH', 'LilyPond', 'LilyPondMidiLink', 'LilyPondSndLink']
+    tmpPng = '' # temporary file holding the LilyPond-generated png file
+    tmpMIDI = '' # temporary file holding the mingus--generated MIDI file
+    tmpMp3 = '' # temporary file holding the fluidsynth-generated and pydub-converted mp3 file
 
     def __init__(self,chord :list):
-        self.chord = chord
+        try:
+            self.chord = chord
 
     def genShellV(self):
         """ TODO """
