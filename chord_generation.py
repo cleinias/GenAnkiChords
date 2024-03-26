@@ -95,6 +95,7 @@ class ChordItem(object):
     __slots__ = ['sortId', 'name', 'root', 'quality', 'chord','inversion', 'voicings']
 
     def __init__(self,voicings=[]):
+        pass
 
 
     def addAuxiliaryFields(self):
@@ -114,6 +115,7 @@ class ChordItem(object):
 
 
 
+@dataclass
 class Voicing():
     """
     Instances of this class know how to generate a list of notes
@@ -121,26 +123,100 @@ class Voicing():
     and for a few voicings
     """
 
-    fields = [] # the list of generated fields containing all the data for the given chord and voicing
-    knownVoicings = ['ShellV', 'GuideTones', 'FourNotesShExt'] # the class only knows these voicings
+    #__slots__ =  'chord' # the list of generated fields containing all the data for the given chord and voicing
+    knownVoicings = ['FullStandardV', 'ShellV', 'GuideTones', 'FourNotesShExt'] # the class only knows these voicings
     startNotes = ['Off3rd', 'Off7th']
     auxiliaryFieldsSuffixes = ['LH', 'RH', 'LilyPond', 'LilyPondMidiLink', 'LilyPondSndLink']
     tmpPng = '' # temporary file holding the LilyPond-generated png file
     tmpMIDI = '' # temporary file holding the mingus--generated MIDI file
     tmpMp3 = '' # temporary file holding the fluidsynth-generated and pydub-converted mp3 file
 
-    def __init__(self,chord :list):
-        try:
-            self.chord = chord
+    def __init__(self,root,quality):
+        self.root = root
+        self.quality = quality
+        self.chord = mChords.from_shorthand(root+quality)
+        self.lilyPondTemplate - self.getLilyPondTemplate()
+
+    def getLilyPondTemplate(self):
+        """"""
+        templ= Template("""[lilypond=void]
+                            \\paper{#(set-paper-size '(cons (* 100 mm) (* 50 mm)))
+                                    indent=0\\mm
+                                    oddFooterMarkup=##f
+                                    oddHeaderMarkup=##f
+                                    bookTitleMarkup = ##f
+                                    scoreTitleMarkup = ##f
+                                    } 
+                             \\version "2.24.3"
+                             \\language "english"
+                             \\score {
+                                      \\new GrandStaff
+                                      <<
+                                        \\new Staff   {$trebleClefNotes}
+                                        \\new Staff   {$bassClefNotes}
+
+                                    >>
+                                    \\layout {}
+                                    \\midi {}
+                                    }
+                             [/lilypond]""")
+        return templ
 
     def genShellV(self):
-        """ TODO """
+        """ Generate lilypond, mp3, png, and fingerings for both off-3rd and off-7th  shell voicings"""
+        self.shellVOff3rdLilypond = self.genShellVOff3rdLilyPond()
+        self.shellVOff7thLilypond = self.genShellVOff7thLilyPond()
 
-        self.fields = []
+    def genFullStandardV(self):
+        """ Generate lilypond, mp3, png, and fingerings for standard 4 notes, root position voicing"""
+        self.fullStandardVLilyPond = self.genFullStandardVLilyPond()
+
+
+    def genFullStandardVNotes(self):
+        notes = [mNote(self.chord[0],3),mNote(self.chord[1], 4),
+                 mNote(self.chord[2],4), mNote(self.chord[3],4)]
+        return notes
+
+
+    def genShellVOff3rdNotes(self):
+        "Choose the right notes and octave for the off-3rd voicing for the given chord"
+        notes = [mNote(self.chord[0],3),mNote(self.chord[1],3)]
+        return notes
+
+    def genShellVOff7thNotes(self):
+        "Choose the right notes and octave for the off-3rd voicing for the given chord"
+        notes = [mNote(self.chord[0],3),mNote(self.chord[3],3)]
+        return notes
+
+    def genFullStandardVLilyPond(self):
+        """Generate the lilypond string for the voicing"""
+        bar = mBar()
+        temp = Template
+        bar.place_notes(self.genFullStandardVNotes(), 1)
+        return LilyPond.from_Bar(bar)
+
+    def genShellVOff3rdLilyPond(self):
+        """Generate the lilypond string for the voicing"""
+        bar = mBar()
+        bar.place_notes(self.genShellVOff3rdNotes(),1)
+        return LilyPond.from_Bar(bar)
+
+    def genShellVOff7thLilyPond(self):
+        """Generate the lilypond string for the voicing"""
+        bar = mBar()
+        bar.place_notes(mNote_container(self.genShellVOff7thNotes()),1)
+        return LilyPond.from_Bar(bar)
+
+    def genFullStandardVPng(self):
+        "generate the png file for the voicing"
+        fileOut = self.root+self.quality+'-FullStandardV'+'.png'
+        LilyPond.to_png(self.genFullStandardVLilyPond(), fileOut)
+        imgTag = '<img src=\"{filename}\"\\>'.format(filename=fileOut)
+        return imgTag
+
 
     def genGuideTonesV(self):
         """ TODO """
-
         pass
 
     def genFourNotesShExtV(self):
@@ -160,7 +236,7 @@ def addShellV(chordItem):
     :param chordItem:
     :return chordItem:
     """
-
+    pass
 
 def addGuideTonesVoicing(chordItem):
     """
