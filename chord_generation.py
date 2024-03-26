@@ -151,8 +151,8 @@ class Voicing():
                              \\score {
                                       \\new GrandStaff
                                       <<
-                                        \\new Staff   {<$trebleClefNotes>1}
-                                        \\new Staff   {\\clef bass <$bassClefNotes>1}
+                                        \\new Staff   {\\set fingeringOrientations = #'(up) <$trebleClefNotes>1}
+                                        \\new Staff   {\\set fingeringOrientations = #'(down) \\clef bass <$bassClefNotes>1}
 
                                     >>
                                     \\layout {}
@@ -190,7 +190,7 @@ class Voicing():
     def genFullStandardVLilyPond(self):
         """Generate the lilypond string for the voicing"""
         bar = mBar()
-        lilyPondString = self.lilyPondTemplate.substitute(bassClefNotes = "c", trebleClefNotes = "e' g' b'")
+        lilyPondString = self.lilyPondTemplate.substitute(bassClefNotes = "c-1", trebleClefNotes = "e'-1 g'-3 b'-5")
         return lilyPondString
 
     def genShellVOff3rdLilyPond(self):

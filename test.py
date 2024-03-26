@@ -45,8 +45,8 @@ class TestVoicingCreation(unittest.TestCase):
                              \\score {
                                       \\new GrandStaff
                                       <<
-                                        \\new Staff   {<$trebleClefNotes>1}
-                                        \\new Staff   {\\clef bass <$bassClefNotes>1}
+                                        \\new Staff   {\\set fingeringOrientations = #'(up) <$trebleClefNotes>1}
+                                        \\new Staff   {\\set fingeringOrientations = #'(down) \\clef bass <$bassClefNotes>1}
 
                                     >>
                                     \\layout {}
@@ -83,7 +83,8 @@ class TestVoicingCreation(unittest.TestCase):
                                                                                                         notes='C and B',
                                                                                                         octave = '3'))
     def test_FullStandardV_LilyPond(self):
-        lilyPondString = self.templ.substitute(trebleClefNotes = "e' g' b'", bassClefNotes = "c")
+        """TODO: Need to add fingerings in lilypond code"""
+        lilyPondString = self.templ.substitute(trebleClefNotes = "e'-1 g'-3 b'-5", bassClefNotes = "c-1")
         self.assertEqual(lilyPondString, self.voicing.genFullStandardVLilyPond(),
                          "Check genFullStandardVLilyPond method, string seems different")
 
