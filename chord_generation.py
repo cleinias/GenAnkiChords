@@ -286,6 +286,7 @@ class Voicing():
         """ TODO write genFourNotesShExtV """
         pass
 
+
 class ChordNote(genanki.Note):
     """
     Holds an Anki note to be added to an Anki Deck.
@@ -293,13 +294,6 @@ class ChordNote(genanki.Note):
     (and therefore ensure possibly updated notes with additional fields in subsequent
     generations of the deck will not replace the old notes).
     """
-
- @property
-  def guid(self):
-    """
-    TODO: Replace field placeholders with the correct field names or field indices
-    Generate a custom ID as a hash of only a few chosen fields instead of hashing all the fields.
-    :param self:
-    :return:
-    """
-    return genanki.guid_for(self.fields[0], self.fields[1])
+    @property
+    def guid(self):
+        return genanki.guid_for(self.fields[1],self.fields[2])

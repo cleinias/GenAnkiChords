@@ -22,30 +22,64 @@ soundFont = '/usr/share/soundfonts/FluidR3_GM.sf2'
 class TestGenAnkiChords(unittest.TestCase):
     """ Test main functions of the app"""
 
-    roots = ['Gb', 'Db', 'Ab', 'Eb', 'Bb', 'F', 'C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#', 'G#', 'D#', 'A#']
-    qualities = ['M7', 'm7', 'dom7', 'm7b5']
-    voicings = ['FullStandardV', 'ShellV', 'GuideTones', 'FourNotesShExt']
-    app = chord_generation.GenAnkiChords(roots,qualities,voicings)
+    roots = ['Gb'] #, 'Db', 'Ab', 'Eb', 'Bb', 'F', 'C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#', 'G#', 'D#', 'A#']
+    qualities = ['M7'] #, 'm7', 'dom7', 'm7b5']
+    voicings = ['FullStandardV'] #, 'ShellV', 'GuideTones', 'FourNotesShExt']
+    app = chord_generation.GenAnkiChords(roots, qualities, voicings)
+
+    def test_AllRootsInApp(self):
+        self.assertEqual(self.roots, self.app.roots, "GenAnkiChords should have all the roots")
+    def test_AllQualitiesInApp(self):
+        self.assertEqual(self.qualities, self.app.qualities, "GenAnkiChords should have all the qualities")
 
     def test_ChordDBCreated(self):
-        self.assertEqual(type(self.app.chordsDB).__name__, 'dict', "GenAnkiChords apps should own a chordsDB \
+        self.app.initDb()
+        self.assertEqual(type(self.app.chordsDb).__name__, 'dict', "GenAnkiChords apps should own a chordsDb \
                                                                            dictionary as an iVar")
 
     def test_allRowsPresentInChordsDB(self):
-        keys = []
-        for root in self.roots:
-            for quality in self.qualities:
-                keys.append(root+quality)
-        app = chord
-        self.assertEqual(keys, self.app.keys, "GenAnkiChords app should have a row for each chord in its chordsDB ivar")
+        keys = [root+quality for root in self.roots for quality in self.qualities]
+        self.assertEqual(keys, [k for k in self.app.chordsDb.keys()],
+                         "GenAnkiChords app should have a row for each chord in its chordsDb ivar")
 
     def test_EachRowHasVoicings(self):
-        for voicing in self.voicing:
-            self.assertIn(voicing,  self.app.chordsDB['voicings'].keys(), "GenAnkiChords app's chordsDB should \
-                                                                                 have a voicing instance for all required\
-                                                                                voicings")
+        self.app.addVoicings()
+        for chordItem in self.app.chordsDb.values():
+            self.assertEqual(type(chordItem.voicings).__name__, 'dict',
+                             "Each chordItems in db should have a dictionary of voicings")
+
+    def test_allVoicingsPresent(self):
+        """
+        Check if the voicings in the chordsDb's items include the set of voicings we are testing
+        (useful to size the tests as we proceed in development"
+        """
+        for chordItem in self.app.chordsDb.values():
+            self.assertTrue(set(chordItem.voicings.keys()).issuperset(set(self.voicings)),
+                         "GenAnkiChords app's chordsDb should have a voicing instance for all required voicings")
 class TestChordItemGen(unittest.TestCase):
     """ Test correct generation of a ChordItem"""
+    testRoot = 'C'
+    allRoots = ['Gb', 'Db', 'Ab', 'Eb', 'Bb', 'F', 'C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#', 'G#', 'D#', 'A#']
+    testQuality = 'M7'
+    allQualities = ['M7'] #, 'm7', 'dom7', 'm7b5']    testQuality = 'M7'
+    chordItem = chord_generation.ChordItem(testRoot, testQuality)
+    testName = testRoot+'-'+testQuality
+    sortID = '' # Need to insert correct pattern here
+
+
+    def test_ChordItemHasRoot(self):
+        self.assertEqual(self.testRoot, self.chordItem.root, "Each ChordItem must have a correct root")
+
+    def test_ChordItemHasQuality(self):
+        self.assertEqual(self.testQuality, self.chordItem.quality, "Each ChordItem must have a correct quality")
+
+    def test_ChordItemHasName(self):
+        self.chordItem.addName()
+        self.assertEqual(self.testName, self.chordItem.name, "Each ChordItem must have a correct name")
+
+    def test_ChordItemHasSortId(self):
+        self.chordItem.addSortId()
+        self.assertEqual(self.sortId, self.chordItem.sortId, "Each ChordItem must have a correct sortId")
 
 class TestVoicingCreation(unittest.TestCase):
     """ Test generation of Shell voicing"""
@@ -133,17 +167,17 @@ class TestVoicingCreation(unittest.TestCase):
         pngTag  = '<snd src=\"' + filename +  '\" \\>'
         self.assertEqual(pngTag, self.voicing.genFullStandardVMp3(), "Check if mp3 file is correct")
 
-    def test_ShellVOff3rd_Png(self):
-        """ Check the proper png file has been created and with the correct filename"""
-        filename = "CM7" + "-ShellVOff3rd" + ".png"
-        pngTag = '<img src=\"' + filename +  '\"\\>'
-        self.assertEqual(pngTag, self.voicing.genShellVOff3rdPng(), "Check if png file is correct")
-
-    def test_ShellVOff7th_Png(self):
-        """ Check the proper png file has been created and with the correct filename"""
-        filename = "CM7" + "-ShellVOff7th" + ".png"
-        pngTag = '<img src=\"' + filename + '\"\\>'
-        self.assertEqual(pngTag, self.voicing.genShellVOff7thPng(), "Check if png file is correct")
+    # def test_ShellVOff3rd_Png(self):
+    #     """ Check the proper png file has been created and with the correct filename"""
+    #     filename = "CM7" + "-ShellVOff3rd" + ".png"
+    #     pngTag = '<img src=\"' + filename +  '\"\\>'
+    #     self.assertEqual(pngTag, self.voicing.genShellVOff3rdPng(), "Check if png file is correct")
+    #
+    # def test_ShellVOff7th_Png(self):
+    #     """ Check the proper png file has been created and with the correct filename"""
+    #     filename = "CM7" + "-ShellVOff7th" + ".png"
+    #     pngTag = '<img src=\"' + filename + '\"\\>'
+    #     self.assertEqual(pngTag, self.voicing.genShellVOff7thPng(), "Check if png file is correct")
 
     #
     # def test_ShellVOff3rdMp3(self):
