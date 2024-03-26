@@ -38,8 +38,9 @@ def initGlobals():
     return chordsDatafile,  model_id, deck_id, deckName, deckFileName, engl2ItNotes, it2EnglNotes, soundFont
 
     # for chord generation
-    roots =  ['C', 'C#', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B']
-    qualities = ['maj7', 'min7', 'halfdim', 'dom7']
+    roots = ['Gb', 'Db', 'Ab', 'Eb', 'Bb', 'F', 'C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#', 'G#', 'D#', 'A#']
+    qualities = ['M7', 'm7', 'dom7', 'm7b5']
+    voicings = ['FullStandardV', 'ShellV', 'GuideTones', 'FourNotesShExt']
     newchordsData = createChordItems((roots,qualities))
 
     # for fieldNames generation in chordItems
@@ -50,74 +51,97 @@ def initGlobals():
 #########################################################################################
 class GenAnkiChords():
     """
-    Contains the procedural code generating the notes--it is a singleton
+    Contains the main logic of the app
+    General flow is as follows:
+    1. Generate the Chord and Voicing database:
+        - Generate the skeleton of a chord database as a row per each root plus quality
+        - Populate the "chord db" with voicings
+        - Generate a unique ID for each row as hash of a few chosen fields
+    2. Convert the chord database to Anki notes:
+        - Create Anki model with appropriate Anki fields for each "column" in the db
+        - Convert db's rows into notes
+        - Create anki package from notes
+    3. Prepare package for upload:
+        - Move media files to correct location
+        - Move Anki package to correct location
+
     """
 
-    # Define the basic chords the app will build notes for as roots and qualities
-    roots = ['Gb', 'Db', 'Ab', 'Eb', 'Bb', 'F', 'C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#', 'G#', 'D#', 'A#']
-    qualities = ['M7', 'm7', 'm7b5']
-    voicings = ['ShellV', 'GuideTones', 'FourNotesShExt']
-    chordItems = {}  # The db-like data structure that holds one row per chord+quality
-
-    def __init__(self):
+    def __init__(self, roots, qualities, voicings):
         """
         Initialize variables and all the parameters of the app, then build all the ChordItems
         """
+        self.roots = roots
+        self.qualities = qualities
+        self.voicings = voicings
+        self.chordsDb = {}
 
-        # generate the chordItems and add all the auxiliary fields
-        self.genChordItems()
-
-        # generate and add the desired voicings
-        self.genAddVoicing(self.voicings)
+    def initDb(self):
+        # create the chordsDb with a row for each chord as a chordItem
+        self.chordsDb = {r+q:ChordItem(r,q) for r in self.roots for q in self.qualities}
 
 
-    def genChordItems(chordItems,roots, qualities):
+    def addVoicings(self):
         """
-        Create a chordItem row from a list of roots and a list of qualities,
-        including a mingus  Chord type
-        :param roots:  a list of chord roots
-        :param qualities: a list of chord qualities
-        :return chordItems: a dictionary of chorditems indexed by root-quality:
+        Create all voicings for each chordItem
+        :return:
         """
-        for root in roots:
-            for quality in qualities:
-                chordItems[root + '-', quality].append(root)
-                chordItems[root + '-', quality].append(quality)
-                chordItems[root + '-', quality].append(mChords.from_shorthand(root + quality))
-
-    def addVocings(self):
-        for chordItem in self.chordItems:
-            chordItem.add
+        for chordItem in self.chordsDb.values():
+            for voicing in self.voicings:
+                chordItem.addVoicing(voicing)
 
 
 @dataclass
 class ChordItem(object):
-    __slots__ = ['sortId', 'name', 'root', 'quality', 'chord','inversion', 'voicings']
+    __slots__ = ['id' 'sortId', 'name', 'root', 'quality', 'chord', 'inversion', 'voicingsNeeded', 'voicings']
 
-    def __init__(self,voicings=[]):
-        pass
+    def __init__(self,root, quality,voicings=[]):
+        self.root = root
+        self.quality = quality
+        self.voicingsNeeded = voicings # The list of voicings this instance can generate
+        self.voicings = {}  # The dictionary actually containing the voicings
+        self.name = self.addName()
 
-
-    def addAuxiliaryFields(self):
+    def addName(self):
         """
-            TODO
-            Generate the auxiliary fields and files for every chordItems (png from LilyPond, sound from MIDI, fingerings)
-            :return:
+        Construct the chord name. Now using a simple concatenation, may change later
+        :param root:
+        :param quality:
+        :return: name
         """
+        return self.root+'-'+self.quality
+
+    def genVoicings(self, voicing):
+        """Generate all the voicings for each chordItem"""
         for voicing in self.voicings:
-            v = Voicing(self.chord)
-            try:
-                genVoicingMethod = getattr(Voicing, 'gen'+voicing)
-                self.voicings.append(v.genVoicingMethod())
-            except AttributeError:
-                raise NotImplementedError(
-                    "Class `{}` does not implement `{}`".format(Voicing.__class__.__name__, genVoicingMethod))
+            v = self.addVoicing(voicing)
+        return True
+
+    def addVoicing(self, voicing):
+        """
+            Add a voicing (including all necessary media files) to the chordItem
+            :return: True if successful
+        """
+        try:
+            newVoicing = Voicing(self.root,self.quality)
+            genVoicingMethod = getattr(Voicing,'gen'+voicing)
+            genVoicingMethod(newVoicing)
+            self.voicings[voicing]=(newVoicing)
+            return True
+        except AttributeError:
+            raise NotImplementedError(
+                "Class `{}` does not implement `{}`".format(Voicing.__class__.__name__, genVoicingMethod))
 
 
 
 @dataclass
 class Voicing():
     """
+    TODO: Add translations of notes for every voicing
+    TODO: add generation of fingering (from construction of keyboard on)
+    TODO: complete shell voicing generation
+    TODO: add guide tones voicing generation
+    TODO: add four notes shell extended voicing
     Instances of this class know how to generate a list of notes
     and auxiliary files (lilypond, png, MID), etc.) for a chord
     and for a few voicings
@@ -193,8 +217,11 @@ class Voicing():
         self.shellVOff7thLilypond = self.genShellVOff7thLilyPond()
 
     def genFullStandardV(self):
-        """ Generate lilypond, mp3, png, and fingerings for standard 4 notes, root position voicing"""
+        """ Generate lilypond, mp3, png, and fingerings for standard root position voicing of a 4 notes 7th chord"""
         self.fullStandardVLilyPond = self.genFullStandardVLilyPond()
+        self.fullStandardVPng = self.genFullStandardVPng()
+        self.fullStandardVMp3 = self.genFullStandardVMp3()
+        self.fullStandardVFingering = self.genFullStandardVFingering()
 
 
     def genFullStandardVNotes(self):
@@ -252,12 +279,11 @@ class Voicing():
 
 
     def genGuideTonesV(self):
-        """ TODO """
+        """ TODO write genGuideTonesV """
         pass
 
     def genFourNotesShExtV(self):
-        """ TODO """
-
+        """ TODO write genFourNotesShExtV """
         pass
 
 #########################################################################################
@@ -266,7 +292,6 @@ class Voicing():
 
 def addShellV(chordItem):
     """
-    TODO
     Add notes for the Shell Voicing (both off 3rd and off-7th)
     and all related fields (lilypond, sound, etc.) to a chordItem
     :param chordItem:
@@ -276,7 +301,6 @@ def addShellV(chordItem):
 
 def addGuideTonesVoicing(chordItem):
     """
-    TODO
     Add notes for the Guide Tone (both off 3rd and off-7th)
     and all related fields (lilypond, sound, etc.) to a chordItem
     :param chordItem:
@@ -287,7 +311,6 @@ def addGuideTonesVoicing(chordItem):
 
 def addFourNotesShExtVoicing(chordItem):
     """
-    TODO
     Add notes for the FourNotesShExt voicing (both off 3rd and off-7th)
     and all related fields (lilypond, sound, etc.) to a chordItem
     :param chordItem:
@@ -330,13 +353,11 @@ def main():
 
     ##################################################################################
     # Generate and add image files from Lilypond code                                #
-    # TODO                                                                          #
     ##################################################################################
     chordsData = genLilypondImg(chordsData)
 
     ##################################################################################
     # Generate and add sound files from Lilypond-produced MIDi code                  #
-    # TODO                                                                          #
     ##################################################################################
 
     chordsData = genSoundFiles(chordsData)
@@ -389,7 +410,6 @@ def main():
 
 def genSoundFiles(chordsData):
     """
-    TODO
     Generate sound files from the Lilypond-generated MIDI file, and store the src link in the
     appropriate field of chordsData items
     :param chordsData:
@@ -400,7 +420,6 @@ def genSoundFiles(chordsData):
 
 def genLilypondImg(chordsData):
     """
-    TODO
     Generate score image from the Lilypond code and store the src img link in the appropriate field
     :param chordsData:
     :return:
@@ -411,7 +430,7 @@ def genLilypondImg(chordsData):
 def createEnglItTransDicts():
     """
     Instantiate two dictionaries for English to Italian and Italian to English translations
-    of note names, including a version with unicode symbols for sharps and flats
+    of note names, using proper unicode symbols for sharps and flats
     """
 
     engl2ItNotes= dict(A="La", Af="Lab", As="Lad", B="Si", Bf="Sib", Bs="Sid", C="Do", Cf="Dob", Cs="Dod", D="Re", Df="Reb",
@@ -588,7 +607,6 @@ def addLilyShellExtVoicing(chordRecord, voicing, lilyPattern, duration=1, octave
         FourNotesSh_Ext_V_Off_7th fields (fieldname passed as parameter) of the chord record
         (chordRecord, passed as a parameter).
         Return the updated record.
-        TODO
         """
 
     return chordRecord

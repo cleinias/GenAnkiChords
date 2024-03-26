@@ -19,8 +19,31 @@ from  pydub  import AudioSegment
 import subprocess
 soundFont = '/usr/share/soundfonts/FluidR3_GM.sf2'
 
+class TestGenAnkiChords(unittest.TestCase):
+    """ Test main functions of the app"""
 
+    roots = ['Gb', 'Db', 'Ab', 'Eb', 'Bb', 'F', 'C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#', 'G#', 'D#', 'A#']
+    qualities = ['M7', 'm7', 'dom7', 'm7b5']
+    voicings = ['FullStandardV', 'ShellV', 'GuideTones', 'FourNotesShExt']
+    app = chord_generation.GenAnkiChords(roots,qualities,voicings)
 
+    def test_ChordDBCreated(self):
+        self.assertEqual(type(self.app.chordsDB).__name__, 'dict', "GenAnkiChords apps should own a chordsDB \
+                                                                           dictionary as an iVar")
+
+    def test_allRowsPresentInChordsDB(self):
+        keys = []
+        for root in self.roots:
+            for quality in self.qualities:
+                keys.append(root+quality)
+        app = chord
+        self.assertEqual(keys, self.app.keys, "GenAnkiChords app should have a row for each chord in its chordsDB ivar")
+
+    def test_EachRowHasVoicings(self):
+        for voicing in self.voicing:
+            self.assertIn(voicing,  self.app.chordsDB['voicings'].keys(), "GenAnkiChords app's chordsDB should \
+                                                                                 have a voicing instance for all required\
+                                                                                voicings")
 class TestChordItemGen(unittest.TestCase):
     """ Test correct generation of a ChordItem"""
 
