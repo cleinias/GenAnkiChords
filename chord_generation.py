@@ -137,6 +137,30 @@ class Voicing():
         self.chord = mChords.from_shorthand(root+quality)
         self.lilyPondTemplate = self.getLilyPondTemplate()
 
+    ############### Utilities methods ######################################
+    def barToMp3(self, bar, mp3FileOut: str, bpm=80):
+        """ TODO: Find out while .wav and .mp3 files don't get closed"
+        Convert a mingus bar to mp3 file using pydub and fluidsynth"""
+        tempMIDIout = 'tmpMidi.mid'
+        tempAudioOut =   'tmpWav.wav'
+        try:
+            mMidiFileOut(tempMIDIout, bar, bpm)
+            p = subprocess.run(["fluidsynth", "-ni", '/usr/share/soundfonts/FluidR3_GM.sf2', tempMIDIout, "-F", tempAudioOut])
+            print('flac file written as: ', tempAudioOut, "with results: ", p)
+        except:
+            print('Conversion of MIDI to flac failed')
+
+        # read back wav and save it as mp3 with pydub
+        try:
+            temp = AudioSegment.from_wav(tempAudioOut)
+            temp.export(mp3FileOut, format="mp3")
+            sndTag = '<snd src="'+mp3FileOut+'" \\>'
+            print('mp3 file written out as: ', mp3FileOut)
+            return sndTag
+        except:
+            print('mp3 production failed')
+
+
     def getLilyPondTemplate(self):
         """"""
         templ= Template("""\\paper{#(set-paper-size '(cons (* 100 mm) (* 50 mm)))
@@ -160,6 +184,8 @@ class Voicing():
                                     }
                                     """)
         return templ
+
+    #########################    Methods ###############################################################
 
     def genShellV(self):
         """ Generate lilypond, mp3, png, and fingerings for both off-3rd and off-7th  shell voicings"""
@@ -211,6 +237,18 @@ class Voicing():
         LilyPond.to_png(self.genFullStandardVLilyPond(), fileOut)
         imgTag = '<img src=\"{filename}\"\\>'.format(filename=fileOut)
         return imgTag
+
+    def genFullStandardVMp3(self):
+        "Use mingus to generate the mp3 file for the voicing from its chord"
+        fileOut = self.root+self.quality+'-FullStandardV'+'.mp3'
+        bar = mBar()
+        bar.place_notes(mNote_container(self.genFullStandardVNotes()), 1)
+        sndTag = self.barToMp3(bar, fileOut)
+        return sndTag
+
+    def genFullStandardVFingering(self):
+        """TODO: use DrawSVG lib for both SVG production and rasterization (d.rasterize())
+        Generate the svg file fo the keyboard with highlighted fingerings for both RH and LH"""
 
 
     def genGuideTonesV(self):

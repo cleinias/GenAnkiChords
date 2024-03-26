@@ -83,7 +83,6 @@ class TestVoicingCreation(unittest.TestCase):
                                                                                                         notes='C and B',
                                                                                                         octave = '3'))
     def test_FullStandardV_LilyPond(self):
-        """TODO: Need to add fingerings in lilypond code"""
         lilyPondString = self.templ.substitute(trebleClefNotes = "e'-1 g'-3 b'-5", bassClefNotes = "c-1")
         self.assertEqual(lilyPondString, self.voicing.genFullStandardVLilyPond(),
                          "Check genFullStandardVLilyPond method, string seems different")
@@ -105,18 +104,24 @@ class TestVoicingCreation(unittest.TestCase):
         pngTag  = '<img src=\"' + filename +  '\"\\>'
         self.assertEqual(pngTag, self.voicing.genFullStandardVPng(), "Check if png file is correct")
 
-    # def test_ShellVOff3rd_Png(self):
-    #     """ Check the proper png file has been created and with the correct filename"""
-    #     Png_filename = ''
-    #
-    #     self.assertEqual(PngString, self.voicing.genShellVOff3rdPng(), "Check string, it seems different")
+    def test_FullStandardV_mp3(self):
+        """ Check the proper snd tag has been created for the mp3 file and with the correct filename"""
+        filename = "CM7" + "-FullStandardV"+ ".mp3"
+        pngTag  = '<snd src=\"' + filename +  '\" \\>'
+        self.assertEqual(pngTag, self.voicing.genFullStandardVMp3(), "Check if mp3 file is correct")
 
-    # def test_ShellVOff7rd_Png(self):
-    #     """ Check the proper png file has been created and with the correct filename"""
-    #     generated_filename = voicing.genShellVOff7thPng(self.chord)
-    #     desired_filename = self.chord + 'ShellVOff7th'+'.png'
-    #     'Need to check how'
-    #     self.assertEqual(generated_filename, desired_filename, "Check if png file has been generated")
+    def test_ShellVOff3rd_Png(self):
+        """ Check the proper png file has been created and with the correct filename"""
+        filename = "CM7" + "-ShellVOff3rd" + ".png"
+        pngTag = '<img src=\"' + filename +  '\"\\>'
+        self.assertEqual(pngTag, self.voicing.genShellVOff3rdPng(), "Check if png file is correct")
+
+    def test_ShellVOff7th_Png(self):
+        """ Check the proper png file has been created and with the correct filename"""
+        filename = "CM7" + "-ShellVOff7th" + ".png"
+        pngTag = '<img src=\"' + filename + '\"\\>'
+        self.assertEqual(pngTag, self.voicing.genShellVOff7thPng(), "Check if png file is correct")
+
     #
     # def test_ShellVOff3rdMp3(self):
     #     """ Check the proper mp3 file has been created and with the correct filename"""
