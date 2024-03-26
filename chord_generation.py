@@ -135,12 +135,11 @@ class Voicing():
         self.root = root
         self.quality = quality
         self.chord = mChords.from_shorthand(root+quality)
-        self.lilyPondTemplate - self.getLilyPondTemplate()
+        self.lilyPondTemplate = self.getLilyPondTemplate()
 
     def getLilyPondTemplate(self):
         """"""
-        templ= Template("""[lilypond=void]
-                            \\paper{#(set-paper-size '(cons (* 100 mm) (* 50 mm)))
+        templ= Template("""\\paper{#(set-paper-size '(cons (* 100 mm) (* 50 mm)))
                                     indent=0\\mm
                                     oddFooterMarkup=##f
                                     oddHeaderMarkup=##f
@@ -152,14 +151,14 @@ class Voicing():
                              \\score {
                                       \\new GrandStaff
                                       <<
-                                        \\new Staff   {$trebleClefNotes}
-                                        \\new Staff   {$bassClefNotes}
+                                        \\new Staff   {<$trebleClefNotes>1}
+                                        \\new Staff   {\\clef bass <$bassClefNotes>1}
 
                                     >>
                                     \\layout {}
                                     \\midi {}
                                     }
-                             [/lilypond]""")
+                                    """)
         return templ
 
     def genShellV(self):
@@ -191,9 +190,8 @@ class Voicing():
     def genFullStandardVLilyPond(self):
         """Generate the lilypond string for the voicing"""
         bar = mBar()
-        temp = Template
-        bar.place_notes(self.genFullStandardVNotes(), 1)
-        return LilyPond.from_Bar(bar)
+        lilyPondString = self.lilyPondTemplate.substitute(bassClefNotes = "c", trebleClefNotes = "e' g' b'")
+        return lilyPondString
 
     def genShellVOff3rdLilyPond(self):
         """Generate the lilypond string for the voicing"""

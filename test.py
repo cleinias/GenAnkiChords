@@ -33,27 +33,26 @@ class TestVoicingCreation(unittest.TestCase):
     quality = 'M7'
     chord = mChords.from_shorthand(root+quality)
     voicing = chord_generation.Voicing(root,quality)
-    templ = Template("""[lilypond=void]
-                                \\paper{#(set-paper-size '(cons (* 100 mm) (* 50 mm)))
-                                        indent=0\\mm
-                                        oddFooterMarkup=##f
-                                        oddHeaderMarkup=##f
-                                        bookTitleMarkup = ##f
-                                        scoreTitleMarkup = ##f
-                                        } 
-                                 \\version "2.24.3"
-                                 \\language "english"
-                                 \\score {
-                                          \\new GrandStaff
-                                          <<
-                                            \\new Staff   {$trebleClefNotes}
-                                            \\new Staff   {$bassClefNotes}
+    templ = Template("""\\paper{#(set-paper-size '(cons (* 100 mm) (* 50 mm)))
+                                    indent=0\\mm
+                                    oddFooterMarkup=##f
+                                    oddHeaderMarkup=##f
+                                    bookTitleMarkup = ##f
+                                    scoreTitleMarkup = ##f
+                                    } 
+                             \\version "2.24.3"
+                             \\language "english"
+                             \\score {
+                                      \\new GrandStaff
+                                      <<
+                                        \\new Staff   {<$trebleClefNotes>1}
+                                        \\new Staff   {\\clef bass <$bassClefNotes>1}
 
-                                        >>
-                                        \\layout {}
-                                        \\midi {}
-                                        }
-                                 [/lilypond]""")
+                                    >>
+                                    \\layout {}
+                                    \\midi {}
+                                    }
+                                    """)
 
     def filenameFromSrcTag(tag):
         """ Extracts a filename from the standard HTML src link"""
@@ -84,7 +83,7 @@ class TestVoicingCreation(unittest.TestCase):
                                                                                                         notes='C and B',
                                                                                                         octave = '3'))
     def test_FullStandardV_LilyPond(self):
-        lilyPondString = '{ \\time 4/4 \key c \major <c e\' g\' b\'>1 }'
+        lilyPondString = self.templ.substitute(trebleClefNotes = "e' g' b'", bassClefNotes = "c")
         self.assertEqual(lilyPondString, self.voicing.genFullStandardVLilyPond(),
                          "Check genFullStandardVLilyPond method, string seems different")
 
