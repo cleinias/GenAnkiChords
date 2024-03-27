@@ -297,3 +297,136 @@ class ChordNote(genanki.Note):
     @property
     def guid(self):
         return genanki.guid_for(self.fields[1],self.fields[2])
+
+class AnkiDeck(object):
+    """
+    Holds all the components of an Anki Deck to be packaged and saved to disk
+    """
+    def __init__(self, chordsDb :GenAnkiChords.chordsDb, mediaDir):
+        """
+        Instantiates the main instance variable to a chords database and creates an Anki deck
+        :param chordsDb:
+        """
+        self.chordsDb = chordsDb
+        self.mediaDir = mediaDir
+    def genDeckFromChordsDb(self):
+        self.filename = self.genFilename()
+        self.fields = self.getFieldsFromChordsDb()
+        self.createChordModel()
+        self.engl2ItNotes, self.it2EnglNotes = self.createEnglItTransDicts()
+        self.useProperMusicNotation()
+        self.ankiDeck = self.createAnkiDeck()
+        self.addCardsToDeck()
+
+
+    def createAnkiDeck(self):
+        ankiChordsDeck = genanki.Deck(
+            self.deckId,
+            self.deckName)
+        return  ankiChordsDeck
+
+    def addCardsToDeck(self):
+        """
+        TODO: write addCardsToDeck
+        create notes from chordsDb and add them to ankiDeck
+        :return:
+        """
+        pass
+
+    def saveDeck(self):
+        """
+        Packages the ankiDeck  as .apkg file and saves it to disk
+        :return:
+        """
+        genanki.Package(self.ankiDeck).write_to_file(self.fileName)
+        print(len(self.ankiNotes), "cards generated and saved into deck ", self.fileName)
+
+    def moveMediaToMediaDir(self):
+        """
+        TODO: write function moveMediaToMediaDir
+        Extract all filenames from img tags in relevant voicing fields and move them to self.mediaDir
+        """
+        pass
+
+    def getFieldsFromChordsDb(self):
+        """
+        Extracts the fields from the chordsDb database
+        """
+        fields = '' # main function goes here
+        return fields
+
+    def createChordModel(self):
+        """ Generate the model, i.e.,  the note type and the card templates
+        """
+
+        chordModel = genanki.Model(self.modelId,'Chords',fields=self.fields,
+            templates=[
+                {
+                    'name': 'NotesRootless3',
+                    'qfmt': '<center><font size=8>Notes in </font><hr> <font size=14>Rootless shell voicing, <br> <bold>off 3rd</bold> for: </font><hr> <font size=16>{{Name}}',
+                    'afmt': '{{FrontSide}}<hr id="answer">{{Rootless_V_Off_3rd}} <hr><center>{{Rootless_V_Off_3rd-lilypond}}</center>',
+                },
+                {
+                    'name': 'NotesRootless7',
+                    'qfmt': '<center><font size=8>Notes in </font><hr> <font size=14>Rootless shell voicing, <br> <bold>off 7th</bold> for: </font><hr><font size=16>{{Name}}',
+                    'afmt': '{{FrontSide}}<hr id="answer">{{Rootless_V_Off_7th}}<hr><center>{{Rootless_V_Off_7th-lilypond}}</center>',
+                },
+                {
+                    'name': 'NotesGuideTones3',
+                    'qfmt': '<center><font size=8>Notes in </font><hr> <font size=14>Lead tones 3-note voicing, <br> <bold>off 3rd</bold> for: </font><hr><font size=16>{{Name}}',
+                    'afmt': '{{FrontSide}}<hr id="answer">{{GuideTones_V_Off_3rd}}<hr><center>{{GuideTones_V_Off_3rd-lilypond}}</center>',
+                },
+                {
+                    'name': 'NotesGuideTones7',
+                    'qfmt': '<center><font size=8>Notes in </font><hr> <font size=14>Lead tones 3-note voicing, <br> <bold>off 7th</bold> for: </font><hr><font size=16>{{Name}}',
+                    'afmt': '{{FrontSide}}<hr id="answer">{{GuideTones_V_Off_7th}}<hr><center>{{GuideTones_V_Off_7th-lilypond}}</center>',
+                },
+
+            ])
+        return chordModel
+
+    def createEnglItTransDicts(self):
+        """
+        Instantiate two dictionaries for English to Italian and Italian to English translations
+        of note names, using proper unicode symbols for sharps and flats
+        """
+
+        engl2ItNotes = dict(A="La", Af="Lab", As="Lad", B="Si", Bf="Sib", Bs="Sid", C="Do", Cf="Dob", Cs="Dod", D="Re",
+                            Df="Reb",
+                            Ds="Red", E="Mi", Ef="Mib", Es="Mid", F="Fa", Fs="Fad", Ff="Fab", G="Sol", Gs="Sold",
+                            Gb="Solb")
+        it2EnglNotes = {y: x for x, y in engl2ItNotes.items()}
+
+        for key, note in engl2ItNotes.items():
+            oldNote = note
+            note = re.sub(r"b$", "\u266D", note)
+            note = re.sub(r"d$", "\u266F", note)
+            engl2ItNotes[key] = [oldNote, note]
+
+        for key, note in it2EnglNotes.items():
+            oldNote = note
+            note = re.sub(r"f$", "\u266D", note)
+            note = re.sub(r"s$", "\u266F", note)
+            it2EnglNotes[key] = [oldNote, note]
+        return engl2ItNotes, it2EnglNotes
+
+    def useProperMusicNotation(self):
+        """
+        TODO: fix function to work as a method of class AnkiDeck
+        Replace accidental abbreviations with proper musical notation in root and voicing fields.
+        """
+
+        fields = ["Root_it", "Rootless_V_Off_3rd", "Rootless_V_Off_7th",
+                  "GuideTones_V_Off_3rd", "GuideTones_V_Off_7th",
+                  "FourNotesSh_Ext_V_Off_3rd", "FourNotesSh_Ext_V_Off_7th"]
+        newChordRecord = chordRecord
+        properNotationDict = dict(createEnglItTransDicts()[0].values())
+        for field in fields:
+            newField = []
+            if len(newChordRecord[field]) > 0:
+                for note in newChordRecord[field].split():
+                    print(field, ' --> ', note)
+                    newField.append(properNotationDict[note])
+                newChordRecord[field] = ' '.join(newField)
+        return newChordRecord
+
